@@ -1,0 +1,212 @@
+# Marked Mayhem
+
+Live standings for the Marked Mayhem OSRS clan event — a points-based drop
+competition between four teams, driven directly from the event's Google Sheet.
+
+Next.js (App Router) + TypeScript + Tailwind. No database, no auth, no build
+step beyond `next build`. One server-side API route reads the sheet, recomputes
+every score from the item catalog, and returns a single typed payload that the
+page polls every 30 seconds.
+
+- **Staff documentation:** [`SHEET_FORMAT.md`](./SHEET_FORMAT.md) — the exact
+  tab and column expectations, written to be handed to whoever maintains the
+  sheet.
+
+---
+
+## Local setup
+
+Windows / PowerShell. Node 20 or newer.
+
+```powershell
+git clone https://github.com/NickolisK24/marked_mayhem.git
+cd marked_mayhem
+npm install
+```
+
+Create `.env.local` in the project root:
+
+```
+SHEET_ID=1rCXkWU1UkD8c43_X7bJf77go8yjUuitK9pYc-ASJLBE
+```
+
+Then:
+
+```powershell
+npm run dev
+```
+
+Open http://localhost:3000.
+
+### Optional environment variables
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `SHEET_ID` | — | **Required.** The sheet's ID, from its URL. |
+| `TAB_DROPS` | `DROPS` | Tab name for the live drop log. |
+| `TAB_BINGO` | `BINGO` | Tab name for the item catalog. |
+| `TAB_TEAMS` | `TEAMS` | Tab name for the rosters. |
+| `TAB_RULES` | `RULES` | Tab name for the rules text. |
+| `TAB_BONUS` | `BONUS` | Tab name for manually-awarded bonuses. |
+| `SHEET_BASE_URL` | `https://docs.google.com` | Override for testing against a local fixture server. Leave unset in production. |
+
+The tab names are environment variables so that a tab renamed mid-event can be
+fixed by changing a Vercel setting and redeploying, rather than editing code.
+
+`.env.example` has all of these ready to copy.
+
+---
+
+## Publishing the sheet
+
+The site reads the sheet as CSV over the public gviz endpoint. Link-sharing is
+**not** sufficient — the sheet must be published.
+
+1. Open the sheet.
+2. **File → Share → Publish to web**.
+3. Under *Link*, choose **Entire Document** and **Comma-separated values (.csv)**.
+4. Click **Publish** and confirm.
+
+To check a single tab from PowerShell (note `curl.exe`, not the `curl` alias):
+
+```powershell
+curl.exe -sS "https://docs.google.com/spreadsheets/d/$env:SHEET_ID/gviz/tq?tqx=out:csv&sheet=BINGO"
+```
+
+CSV means it worked. HTML means the sheet is not published, or the tab name is
+wrong — the site reports both cases by name in its error banner.
+
+### Before the event starts
+
+- Create the `BONUS` tab. The exact header row is in
+  [`SHEET_FORMAT.md`](./SHEET_FORMAT.md#bonus--manually-awarded-points).
+- Add a `Timestamp` column to `DROPS` (recommended — see below).
+- Set the event end date in `src/config/event.ts` (`EVENT_END`). Until it is
+  set, the header shows "end date TBD" rather than a broken countdown.
+
+---
+
+## Deploying to Vercel
+
+1. Push this repository to GitHub.
+2. In Vercel, **Add New → Project**, and import the repository. The framework
+   is detected automatically; no build settings need changing.
+3. Under **Settings → Environment Variables**, add `SHEET_ID` for the
+   Production, Preview and Development environments. Add the `TAB_*` variables
+   too if any tab is not named as above.
+4. **Deploy**.
+
+The API route revalidates every 30 seconds, so a sheet edit appears on the site
+within about a minute regardless of how many people have it open — Google is hit
+about twice a minute in total, not once per visitor.
+
+Changing an environment variable requires a redeploy to take effect
+(**Deployments → ⋯ → Redeploy**).
+
+---
+
+## How scoring works
+
+Scoring is recomputed from scratch in `src/lib/scoring.ts`. The sheet's own
+`Points Earned`, `Multiplier`, `Full Points`, `# Seen`, `# from Team`,
+`# for Full Points` and `Bonus` columns are **not read** — those formulas are
+partly broken, and a scoring path that reads them cannot be tested.
+
+For each drop, in chronological order within a team:
+
+1. The item is looked up in the catalog by **boss + item**, not item alone — the
+   same item is worth different points at different bosses.
+2. If the team has fewer than `Full pts qty limit` of that item already, it
+   scores full points. Otherwise it scores **half**.
+3. The item's catalog price is added to the team's GP total either way.
+
+Team totals carry drop points and bonus points separately. Player totals use the
+same arithmetic; because the quantity limit is a team-level resource, a player
+who is second for their team gets the half.
+
+### Drop ordering
+
+If `DROPS` has a `Timestamp` column, drops are ordered by it. Otherwise they are
+ordered by row position, which is correct as long as rows are only appended.
+The drop feed says which mode is in use.
+
+---
+
+## Robustness
+
+The site is built on the assumption that the sheet will break mid-event.
+
+| What breaks | What happens |
+| --- | --- |
+| A tab is renamed, deleted, or unpublished | Error banner naming that tab and the problem; last good data stays on screen |
+| A required column is removed | Error banner naming the tab and the missing columns |
+| A drop references an unknown item, boss, or RSN | That row is skipped and listed in the dismissible warnings panel |
+| A cell contains `#REF!`, `#N/A`, `$0`, or `40,331,957` | Parsed correctly; broken numbers become "missing", never a silent zero |
+| Google is unreachable | Last loaded data stays on screen with a "couldn't refresh" indicator |
+| Blank rows in the drop log | Skipped silently — they are the norm, not an error |
+| First paint | Loading skeletons, never a blank page |
+
+There is deliberately **no** fuzzy matching on item or player names. A wrong
+silent match moves points between teams without anyone noticing; an unmatched
+row appears in the warnings panel and gets fixed in the sheet in half a minute.
+
+---
+
+## Development
+
+```powershell
+npm run dev        # dev server
+npm run build      # production build
+npm test           # unit tests
+npm run typecheck  # tsc --noEmit
+```
+
+### Tests
+
+```
+tests/csv.test.ts       CSV parsing, header mapping, numeric parsing
+tests/aliases.test.ts   RSN alias resolution and roster parsing
+tests/scoring.test.ts   the scoring function
+tests/payload.test.ts   the assembled API payload
+tests/format.test.ts    GP / points / relative time formatting
+```
+
+The negative fixtures matter as much as the positive ones: missing columns,
+blank rows, `#REF!` cells, comma-formatted prices, an unknown RSN, an unknown
+item, a team with zero drops, and a duplicate item crossing its quantity limit
+mid-sequence.
+
+### Testing without the real sheet
+
+`SHEET_BASE_URL` points the fetch layer at any host that answers the gviz URL
+shape, so the whole stack can be exercised against local fixture CSVs:
+
+```powershell
+$env:SHEET_ID = "mock"
+$env:SHEET_BASE_URL = "http://127.0.0.1:4545"
+npm run dev
+```
+
+### Code layout
+
+```
+src/config/event.ts    event name, end date, team colours, bonus types, tab names
+src/lib/               parsing and scoring — pure, no React, no I/O except sheet.ts
+  csv.ts               CSV parsing and header mapping
+  numbers.ts           numeric and timestamp parsing
+  text.ts              normalization used for every key comparison
+  aliases.ts           RSN -> player resolution
+  catalog.ts           the BINGO tab
+  roster.ts            the TEAMS tab
+  drops.ts             the DROPS tab
+  bonus.ts             the BONUS tab
+  rules.ts             the RULES tab
+  scoring.ts           the scoring function — pure, fully tested
+  sheet.ts             the only module that fetches
+  payload.ts           assembles the API payload
+src/app/api/event/     the single API route
+src/components/        presentation
+```
+
+Parsing, scoring and presentation are kept separate: `src/lib` never imports
+React, and the components never do arithmetic.
