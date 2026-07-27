@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+/*
+ * Warm parchment and gold on near-black. OSRS-adjacent — the palette and the
+ * serif display face read as Gielinor without imitating the game's chrome.
+ */
+@theme {
+  --color-ink: #0a0908;
+  --color-ink-raised: #14110d;
+  --color-ink-edge: #241e16;
+
+  --color-parchment: #ede0c8;
+  --color-parchment-dim: #b5a68b;
+  --color-parchment-faint: #7d715d;
+
+  --color-gold: #f0b429;
+  --color-gold-dim: #b8860b;
+
+  --color-danger: #f87171;
+  --color-warn: #fbbf24;
+
+  --font-display: ui-serif, Georgia, "Times New Roman", serif;
+}
+
+html {
+  background-color: var(--color-ink);
+  /* Keep the iOS pull-to-refresh area dark rather than white. */
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-ink);
+  color: var(--color-parchment);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* A faint warm vignette so the near-black is not flat. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(
+      60rem 40rem at 50% -10%,
+      rgba(240, 180, 41, 0.07),
+      transparent 70%
+    ),
+    radial-gradient(
+      40rem 30rem at 100% 100%,
+      rgba(240, 180, 41, 0.035),
+      transparent 70%
+    );
+}
+
+@utility panel {
+  background-color: var(--color-ink-raised);
+  border: 1px solid var(--color-ink-edge);
+  border-radius: 0.75rem;
+}
+
+/* Horizontal tab strip on phones, without a visible scrollbar. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0.45;
+  }
+}
+
+@utility skeleton {
+  background-color: var(--color-ink-edge);
+  border-radius: 0.375rem;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
