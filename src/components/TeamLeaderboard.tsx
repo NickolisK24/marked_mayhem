@@ -1,14 +1,8 @@
-import { formatCount, formatGp, formatPoints } from "@/lib/format";
+import { formatCount, formatPoints } from "@/lib/format";
 import { teamColor } from "@/lib/teamColor";
 import type { TeamScore } from "@/lib/types";
 
-export function TeamLeaderboard({
-  teams,
-  hasPrices,
-}: {
-  teams: TeamScore[];
-  hasPrices: boolean;
-}) {
+export function TeamLeaderboard({ teams }: { teams: TeamScore[] }) {
   if (teams.length === 0) {
     return (
       <p className="panel px-4 py-6 text-center text-sm text-parchment-faint">
@@ -81,17 +75,15 @@ export function TeamLeaderboard({
               />
             </div>
 
-            <dl
-              className={`mt-3 grid gap-x-4 gap-y-2 text-sm ${hasPrices ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}
-            >
-              <Stat label="Drops" value={formatPoints(team.dropPoints)} />
+            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
+              <Stat label="Drop pts" value={formatPoints(team.dropPoints)} />
               <Stat
                 label="Bonus"
                 value={formatPoints(team.bonusPoints)}
                 muted={team.bonusPoints === 0}
               />
               <Stat label="Uniques" value={formatCount(team.uniques)} />
-              {hasPrices && <Stat label="Value" value={formatGp(team.gpValue)} />}
+              <Stat label="Drops" value={formatCount(team.dropCount)} />
             </dl>
           </article>
         );

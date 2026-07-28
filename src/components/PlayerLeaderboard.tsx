@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { FALLBACK_TEAM_COLOR } from "@/config/event";
-import { formatCount, formatGp, formatPoints } from "@/lib/format";
+import { formatCount, formatPoints } from "@/lib/format";
 import type { TeamColor } from "@/lib/teamColor";
 import type { PlayerScore } from "@/lib/types";
 
@@ -10,12 +10,10 @@ export function PlayerLeaderboard({
   players,
   teams,
   colors,
-  hasPrices,
 }: {
   players: PlayerScore[];
   teams: string[];
   colors: Map<string, TeamColor>;
-  hasPrices: boolean;
 }) {
   const [filter, setFilter] = useState<string | null>(null);
 
@@ -79,9 +77,6 @@ export function PlayerLeaderboard({
                     {player.team}
                     {player.dropCount > 0 &&
                       ` · ${formatCount(player.dropCount)} drop${player.dropCount === 1 ? "" : "s"}`}
-                    {hasPrices &&
-                      player.gpValue > 0 &&
-                      ` · ${formatGp(player.gpValue)}`}
                   </p>
                 </div>
 

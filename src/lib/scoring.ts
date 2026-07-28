@@ -10,8 +10,8 @@
  *     still count — they are never discarded.
  *   - Order therefore matters: each team's drops are processed oldest-first so
  *     the first N are the ones that get full credit.
- *   - Team totals carry drop points and bonus points separately, plus distinct
- *     items claimed and summed GP value from the catalog's Price column.
+ *   - Team totals carry drop points and bonus points separately, plus the count
+ *     of distinct items claimed.
  *   - Player totals use the same arithmetic, attributed to the individual. The
  *     quantity limit is a team-level resource, so a player's drop inherits
  *     whatever multiplier the team-level sequence gave it.
@@ -94,7 +94,6 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
       bonusPoints: 0,
       totalPoints: 0,
       uniques: 0,
-      gpValue: 0,
       dropCount: 0,
       bonuses: [],
     });
@@ -112,7 +111,6 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
       isCaptain: player.isCaptain,
       points: 0,
       dropCount: 0,
-      gpValue: 0,
     });
   }
 
@@ -184,15 +182,12 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
 
     const multiplier = already < entry.fullPointsLimit ? 1 : 0.5;
     const points = entry.points * multiplier;
-    const gp = entry.price ?? 0;
 
     teamScore.dropPoints += points;
-    teamScore.gpValue += gp;
     teamScore.dropCount += 1;
     teamUniques.get(team)?.add(entry.key);
 
     playerScore.points += points;
-    playerScore.gpValue += gp;
     playerScore.dropCount += 1;
 
     const claimed = claims.get(entry.key);
@@ -214,7 +209,6 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
       multiplier,
       points,
       halfPoints: multiplier < 1,
-      gpValue: gp,
       timestamp: drop.timestamp,
     });
   }
@@ -300,14 +294,14 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
     (a, b) =>
       b.totalPoints - a.totalPoints ||
       b.uniques - a.uniques ||
-      b.gpValue - a.gpValue ||
+      b.dropCount - a.dropCount ||
       a.name.localeCompare(b.name),
   );
 
   const players = [...playerScores.values()].sort(
     (a, b) =>
       b.points - a.points ||
-      b.gpValue - a.gpValue ||
+      b.dropCount - a.dropCount ||
       a.displayName.localeCompare(b.displayName),
   );
 

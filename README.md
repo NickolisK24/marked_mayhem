@@ -94,8 +94,10 @@ name is wrong; the site distinguishes the two in its error banner.
 - Create the `BONUS` tab. The exact header row is in
   [`SHEET_FORMAT.md`](./SHEET_FORMAT.md#bonus--manually-awarded-points).
 - Add a `Timestamp` column to `DROPS` (recommended — see below).
-- Set the event end date in `src/config/event.ts` (`EVENT_END`). Until it is
-  set, the header shows "end date TBD" rather than a broken countdown.
+- The event window is set in `src/config/event.ts` (`EVENT_START` and
+  `EVENT_END`), currently 30 July 2026 17:00 to 9 August 2026 17:00 US Eastern.
+  The header counts down to the start before the event, to the end during it,
+  and reads "event over" afterwards.
 
 ---
 
@@ -130,8 +132,8 @@ For each drop, in chronological order within a team:
 1. The item is looked up in the catalog by **boss + item**, not item alone — the
    same item is worth different points at different bosses.
 2. If the team has fewer than `Full pts qty limit` of that item already, it
-   scores full points. Otherwise it scores **half**.
-3. The item's catalog price is added to the team's GP total either way.
+   scores full points. Otherwise it scores **half** — duplicates still count as
+   drops, they just score less.
 
 Team totals carry drop points and bonus points separately. Player totals use the
 same arithmetic; because the quantity limit is a team-level resource, a player
@@ -156,6 +158,7 @@ The site is built on the assumption that the sheet will break mid-event.
 | A required column is removed | Error banner naming the tab and the missing columns |
 | A drop references an unknown item, boss, or RSN | That row is skipped and listed in the dismissible warnings panel |
 | A cell contains `#REF!`, `#N/A`, `$0`, or `40,331,957` | Parsed correctly; broken numbers become "missing", never a silent zero |
+| The catalog has no price or quantity-limit column | Neither is required; GP is not tracked and limits default to 1 |
 | Google is unreachable | Last loaded data stays on screen with a "couldn't refresh" indicator |
 | Blank rows in the drop log | Skipped silently — they are the norm, not an error |
 | First paint | Loading skeletons, never a blank page |
@@ -182,7 +185,7 @@ tests/csv.test.ts       CSV parsing, header mapping, numeric parsing
 tests/aliases.test.ts   RSN alias resolution and roster parsing
 tests/scoring.test.ts   the scoring function
 tests/payload.test.ts   the assembled API payload
-tests/format.test.ts    GP / points / relative time formatting
+tests/format.test.ts    points, relative time and the event-window countdown
 ```
 
 The negative fixtures matter as much as the positive ones: missing columns,

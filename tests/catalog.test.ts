@@ -43,7 +43,6 @@ describe("sectioned catalog layout", () => {
 
     const hilt = catalog.byKey.get("armadyl|armadyl hilt");
     expect(hilt?.points).toBe(80);
-    expect(hilt?.price).toBe(120_000_000);
     expect(hilt?.category).toBe("Armadyl");
   });
 
@@ -215,11 +214,6 @@ describe("headerless catalog read by column position", () => {
       "Team 1st=400",
       "Team Participation=50",
     ]);
-  });
-
-  it("reports no prices, since the tab has no price column", () => {
-    const { catalog } = build(HEADERLESS);
-    expect(catalog.entries.every((e) => e.price === null)).toBe(true);
   });
 
   it("defaults every quantity limit to 1 when the column is absent", () => {
