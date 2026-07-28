@@ -1183,3 +1183,96 @@ describe("scoring — whole-team challenges listed on the team", () => {
     expect(team(result, "Faedaa").awards).toEqual([]);
   });
 });
+
+describe("scoring — set completions and all-uniques rows", () => {
+  // The sheet works these out itself: when a team collects every piece, it
+  // awards the set. They arrive in the drop log as ordinary catalog entries,
+  // so nothing here special-cases them — these tests exist to pin down that
+  // the value the platform shows matches the catalog, whoever the row names.
+  const BINGO = [
+    "Category,Item,Key,Points,Full pts qty limit",
+    "Nex,Torva Platebody,NexTorva Platebody,400,1",
+    "Nex,Completed Torva,NexCompleted Torva,1200,1",
+    "Armadyl,All Uniques (Not Shard),ArmadylAll Uniques (Not Shard),300,1",
+  ].join("\n");
+
+  it("scores a completed set at its catalog value", () => {
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([["Lauren", "Charzbtw", "Nex", "Completed Torva"]]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(1200);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("scores it the same when the row names nobody", () => {
+    // A set spans several players, so the sheet may well leave User empty.
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([["Lauren", "", "Nex", "Completed Torva"]]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(1200);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("scores an all-uniques row at its catalog value", () => {
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([["Lauren", "", "Armadyl", "All Uniques (Not Shard)"]]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(300);
+  });
+
+  it("counts a set as an item, not an award", () => {
+    // It sits under a boss, so it belongs in the item statistics — unlike a
+    // Misc. or Team Challenges row, which is listed separately instead.
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([["Lauren", "", "Nex", "Completed Torva"]]),
+    });
+
+    const scored = team(result, "Lauren");
+    expect(scored.uniques).toBe(1);
+    expect(scored.dropCount).toBe(1);
+    expect(scored.awards).toEqual([]);
+  });
+
+  it("adds the set on top of the pieces rather than replacing them", () => {
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([
+        ["Lauren", "Charzbtw", "Nex", "Torva Platebody"],
+        ["Lauren", "", "Nex", "Completed Torva"],
+      ]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(1600);
+    expect(player(result, "Charzbtw").points).toBe(400);
+  });
+
+  it("halves a second set like any other repeated item", () => {
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([
+        ["Lauren", "", "Nex", "Completed Torva"],
+        ["Lauren", "", "Nex", "Completed Torva"],
+      ]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(1800);
+  });
+
+  it("flags a set name the catalog does not have", () => {
+    // If the sheet ever renames one, it fails loudly rather than scoring 0.
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([["Lauren", "", "Nex", "Completed Virtus"]]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(0);
+    expect(result.warnings.map((w) => w.kind)).toContain("unknownItem");
+  });
+});
