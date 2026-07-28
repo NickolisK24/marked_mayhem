@@ -46,23 +46,6 @@ export const FALLBACK_TEAM_COLOR = {
  */
 export const BONUS_CATEGORIES = ["Misc.", "Misc", "Team Challenges"];
 
-/**
- * Items whose scoring is capped per team.
- *
- * The general rule has no ceiling: a team's first of an item scores full points
- * and every later one scores half, however many they bring in. These items are
- * the exception — past the cap they score **nothing**.
- *
- * Matched on the item name after normalisation, across every boss, so a cap
- * does not have to name the boss the item drops from. A cap that matches no
- * catalog item is reported in the warnings panel rather than silently doing
- * nothing, since a typo here would let capped items keep scoring.
- */
-export const ITEM_SCORING_CAPS: ReadonlyArray<{ item: string; cap: number }> = [
-  // First cape scores full, capes 2-5 score half, capes 6+ score nothing.
-  { item: "Infernal cape", cap: 5 },
-];
-
 /** Seconds between client polls, and the server-side cache window. */
 export const REVALIDATE_SECONDS = 30;
 

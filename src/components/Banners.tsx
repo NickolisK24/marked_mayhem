@@ -50,7 +50,6 @@ const KIND_LABELS: Record<string, string> = {
   catalogKeyMismatch: "Catalog key mismatch",
   unparsedNumber: "Unreadable number",
   pendingPrice: "Price still calculating",
-  scoringCapUnmatched: "Capped item not in the catalog",
   unknownBonusType: "Unrecognised bonus type",
   rosterAmbiguousAlias: "Ambiguous roster name",
 };

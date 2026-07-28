@@ -12,10 +12,10 @@
  * a mismatch is reported, never acted on.
  */
 
-import { BONUS_CATEGORIES, ITEM_SCORING_CAPS } from "@/config/event";
+import { BONUS_CATEGORIES } from "@/config/event";
 import type { SheetRow, SheetTable } from "./csv";
 import { parseLimit, parseNumber } from "./numbers";
-import { catalogKey, normalize, squash, tidy } from "./text";
+import { catalogKey, normalize, squash, stripLimitSuffix, tidy } from "./text";
 import type { Catalog, CatalogEntry, Warning } from "./types";
 
 /**
@@ -75,11 +75,6 @@ const POSITIONAL = { category: 0, item: 1, points: 2 } as const;
 export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
   const warnings: Warning[] = [];
 
-  // Item name -> per-team scoring cap, matched across every boss.
-  const capByItem = new Map(
-    ITEM_SCORING_CAPS.map((entry) => [normalize(entry.item), entry.cap]),
-  );
-  const capsMatched = new Set<string>();
   const byKey = new Map<string, CatalogEntry>();
   const entries: CatalogEntry[] = [];
   const byCategory = new Map<string, CatalogEntry[]>();
@@ -104,9 +99,14 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
     // An explicit Category on the row wins; otherwise the row belongs to the
     // section it sits under.
     const category = cell(row, "Category", POSITIONAL.category) || section;
-    const item = cell(row, "Item", POSITIONAL.item);
+    const rawItem = cell(row, "Item", POSITIONAL.item);
 
-    if (item === "") continue;
+    if (rawItem === "") continue;
+
+    // "Infernal Cape (Limit 5)" is the item "Infernal Cape", capped at 5. The
+    // suffix is how the catalog writes a cap; it is not part of the name and
+    // the drop log does not carry it.
+    const { name: item, limit: cap } = stripLimitSuffix(rawItem);
 
     if (category === "") {
       warnings.push({
@@ -134,11 +134,9 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
       // a missing value there is harmless and defaults to 0.
       points: points ?? 0,
       fullPointsLimit: limit,
-      scoringCap: capByItem.get(normalize(item)) ?? null,
+      scoringCap: cap,
       row: row.row,
     };
-
-    if (entry.scoringCap !== null) capsMatched.add(normalize(item));
 
     if (isBonusCategory(category)) {
       bonusEntries.push(entry);
@@ -170,8 +168,10 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
 
     // Verification only: the sheet's Key should be Category+Item, but its exact
     // formatting is not depended on.
+    // Compared against the item as written, suffix included: the sheet builds
+    // this column from its own cell, not from the name after stripping.
     const sheetKey = cell(row, "Key", null);
-    if (sheetKey !== "" && squash(sheetKey) !== squash(category + item)) {
+    if (sheetKey !== "" && squash(sheetKey) !== squash(category + rawItem)) {
       warnings.push({
         kind: "catalogKeyMismatch",
         tab,
@@ -187,19 +187,6 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
     const bucket = byCategory.get(category);
     if (bucket) bucket.push(entry);
     else byCategory.set(category, [entry]);
-  }
-
-  // A cap that matches nothing is a typo in configuration, and silently letting
-  // a capped item score without limit is exactly the kind of quiet wrongness
-  // this codebase avoids.
-  for (const [item, cap] of capByItem) {
-    if (capsMatched.has(item)) continue;
-    warnings.push({
-      kind: "scoringCapUnmatched",
-      tab,
-      value: item,
-      message: `A per-team cap of ${cap} is configured for "${item}", but no item by that name is in the catalog, so nothing is capped. Check the spelling against the item list.`,
-    });
   }
 
   return {

@@ -385,11 +385,7 @@ describe("scoring — bad input never crashes and never scores silently", () => 
     });
 
     expect(team(result, "Lauren").dropPoints).toBe(80);
-    // A one-line catalog has no Infernal cape, so the configured cap matching
-    // nothing is expected here and covered by its own test.
-    expect(
-      result.warnings.filter((w) => w.kind !== "scoringCapUnmatched"),
-    ).toHaveLength(0);
+    expect(result.warnings).toHaveLength(0);
   });
 
   it("ignores blank drop rows without warning about them", () => {
@@ -748,11 +744,11 @@ describe("scoring — a Price still being calculated by a custom formula", () =>
 });
 
 describe("scoring — the Infernal cape per-team cap", () => {
-  // 60 points, and capped at 5 per team by config.
+  // The catalog writes the cap into the item name, as the live sheet does.
   const bingo = [
     "Category,Item,Points",
-    "Inferno,Infernal cape,60",
-    "Inferno,Jal-nib-rek,40",
+    "Zuk,Infernal Cape (Limit 5),60",
+    "Zuk,Jal-nib-rek,40",
   ].join("\n");
 
   const capes = (n: number) =>
@@ -760,8 +756,9 @@ describe("scoring — the Infernal cape per-team cap", () => {
       Array.from({ length: n }, (_, i) => [
         "Lauren",
         i % 2 === 0 ? "Charzbtw" : "canofeesh",
-        "Inferno",
-        "Infernal cape",
+        "Zuk",
+        // The drop log records the plain name, without the suffix.
+        "Infernal Cape",
       ]) as Array<[string, string, string, string]>,
     );
 
@@ -813,8 +810,8 @@ describe("scoring — the Infernal cape per-team cap", () => {
   it("counts the cap per team, so each team gets its own five", () => {
     const rows: Array<[string, string, string, string]> = [];
     for (let i = 0; i < 7; i += 1) {
-      rows.push(["Lauren", "Charzbtw", "Inferno", "Infernal cape"]);
-      rows.push(["Faedaa", "MarylandRat", "Inferno", "Infernal cape"]);
+      rows.push(["Lauren", "Charzbtw", "Zuk", "Infernal Cape"]);
+      rows.push(["Faedaa", "MarylandRat", "Zuk", "Infernal Cape"]);
     }
     const result = buildFixture({ bingo, drops: dropsCsv(rows) });
 
@@ -826,7 +823,7 @@ describe("scoring — the Infernal cape per-team cap", () => {
     const rows = Array.from({ length: 9 }, () => [
       "Lauren",
       "Charzbtw",
-      "Inferno",
+      "Zuk",
       "Jal-nib-rek",
     ]) as Array<[string, string, string, string]>;
     const result = buildFixture({ bingo, drops: dropsCsv(rows) });
@@ -840,31 +837,37 @@ describe("scoring — the Infernal cape per-team cap", () => {
     expect(team(result, "Lauren").uniques).toBe(1);
   });
 
-  it("matches the cap on the item name whatever the boss column says", () => {
+  it("caps whichever item carries the suffix, under any boss", () => {
     const other = [
       "Category,Item,Points",
-      "TzKal-Zuk,Infernal cape,60",
+      "Fortis Colosseum,Dizana's quiver (Limit 5),50",
     ].join("\n");
     const rows = Array.from({ length: 7 }, () => [
       "Lauren",
       "Charzbtw",
-      "TzKal-Zuk",
-      "Infernal cape",
+      "Fortis Colosseum",
+      "Dizana's quiver",
     ]) as Array<[string, string, string, string]>;
 
     const result = buildFixture({ bingo: other, drops: dropsCsv(rows) });
-    expect(team(result, "Lauren").dropPoints).toBe(180);
+    // 50 + four at 25, then nothing.
+    expect(team(result, "Lauren").dropPoints).toBe(150);
   });
 
-  it("flags a configured cap that matches no catalog item", () => {
+  it("matches a drop that does carry the suffix too", () => {
     const result = buildFixture({
-      bingo: "Category,Item,Points\nCallisto,Dragon 2h sword,60",
+      bingo,
+      drops: dropsCsv([
+        ["Lauren", "Charzbtw", "Zuk", "Infernal Cape (Limit 5)"],
+      ]),
     });
 
-    const warning = result.warnings.find(
-      (w) => w.kind === "scoringCapUnmatched",
-    );
-    expect(warning?.message).toContain("infernal cape");
-    expect(warning?.message).toContain("5");
+    expect(team(result, "Lauren").dropPoints).toBe(60);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("never shows the suffix in the item name", () => {
+    const result = buildFixture({ bingo, drops: capes(1) });
+    expect(player(result, "Charzbtw").drops[0]!.item).toBe("Infernal Cape");
   });
 });
