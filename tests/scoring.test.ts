@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BINGO_COLUMNS } from "@/lib/catalog";
+import { BINGO_ALL_COLUMNS } from "@/lib/catalog";
 import { BONUS_COLUMNS } from "@/lib/bonus";
 import { buildFixture, dropsCsv, player, team, BINGO_CSV } from "./helpers";
 
@@ -331,7 +331,7 @@ describe("scoring — bad input never crashes and never scores silently", () => 
 
   it("treats a broken price as 0 GP without losing the points", () => {
     const bingo = [
-      BINGO_COLUMNS.join(","),
+      BINGO_ALL_COLUMNS.join(","),
       "Callisto,Voidwaker hilt,CallistoVoidwaker hilt,#REF!,80,1",
     ].join("\n");
 

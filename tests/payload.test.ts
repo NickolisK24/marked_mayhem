@@ -79,16 +79,25 @@ describe("buildPayload", () => {
     ]);
   });
 
-  it("names the tab and the missing columns when the catalog loses a column", () => {
+  it("works without the optional catalog columns", () => {
+    // Key is never used for scoring and Full pts qty limit defaults to 1, so
+    // neither is required — losing them must not raise a tab error.
     const payload = build({
       bingo: "Category,Item,Price,Points\nCallisto,Any Shard,100,5",
     });
 
+    expect(payload.tabErrors.find((e) => e.tab === "BINGO")).toBeUndefined();
+    const callisto = payload.bosses.find((b) => b.boss === "Callisto");
+    expect(callisto?.items[0]?.fullPointsLimit).toBe(1);
+  });
+
+  it("names the tab and the column when the catalog loses Points", () => {
+    const payload = build({
+      bingo: "Category,Item,Price\nCallisto,Any Shard,100",
+    });
+
     const error = payload.tabErrors.find((e) => e.tab === "BINGO");
-    expect(error?.problem).toContain("Key");
-    expect(error?.problem).toContain("Full pts qty limit");
-    // ...and it still scores what it can, defaulting the missing limit to 1.
-    expect(payload.bosses.find((b) => b.boss === "Callisto")).toBeDefined();
+    expect(error?.problem).toContain("Points");
   });
 
   it("names the tab when the drop log loses a column", () => {

@@ -13,22 +13,14 @@
  * Long is tried first because its header is unambiguous.
  */
 
-import { CAPTAINS, TEAM_COLORS } from "@/config/event";
+import { TEAM_COLORS } from "@/config/event";
 import type { SheetTable } from "./csv";
 import { buildAliasIndex, splitRsns } from "./aliases";
-import { normalize, squash, tidy } from "./text";
+import { normalize, tidy } from "./text";
 import type { Player, Roster, Team, Warning } from "./types";
 
 const EHB_HEADER = /\b(ehb|bracket|tier)\b/i;
 const TEAM_PREFIX = /^team\s*[:\-]?\s*/i;
-
-// Matched on the space-stripped form too, so the roster's "harmon y" is still
-// recognised as the captain harmony.
-const captainSet = new Set(CAPTAINS.flatMap((c) => [normalize(c), squash(c)]));
-
-function isCaptainName(name: string): boolean {
-  return captainSet.has(normalize(name)) || captainSet.has(squash(name));
-}
 
 export interface RosterResult {
   roster: Roster;
@@ -46,7 +38,6 @@ function makePlayer(
   if (rsns.length === 0) return null;
 
   const displayName = rsns[0]!;
-  const isCaptain = rsns.some(isCaptainName);
 
   return {
     id: `${normalize(team)}::${normalize(displayName)}`,
@@ -54,7 +45,8 @@ function makePlayer(
     rsns,
     team,
     ehb: tidy(ehb),
-    isCaptain,
+    // Set once the team is assembled — the captain is whoever is listed first.
+    isCaptain: false,
     row,
   };
 }
@@ -151,15 +143,16 @@ export function buildRoster(table: SheetTable, tab: string): RosterResult {
     team.players.push(player);
   }
 
+  // The captain is the first player listed under each team in the sheet. The
+  // team's name is not a reliable signal — "Team Lauren" is captained by
+  // "smol tiddies" — and neither is a hard-coded list of captain names, which
+  // silently stops matching the moment someone changes their RSN.
   const teams = [...teamsByKey.values()];
   for (const team of teams) {
-    const captain = team.players.find((player) => player.isCaptain);
-    if (captain) {
-      team.captain = captain.displayName;
-    } else if (isCaptainName(team.name)) {
-      // The team is named after its captain.
-      team.captain = team.name;
-    }
+    const captain = team.players[0];
+    if (!captain) continue;
+    captain.isCaptain = true;
+    team.captain = captain.displayName;
   }
 
   if (teams.length > TEAM_COLORS.length) {

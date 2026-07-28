@@ -1,5 +1,5 @@
 import { BONUS_COLUMNS, parseBonuses } from "@/lib/bonus";
-import { BINGO_COLUMNS, buildCatalog } from "@/lib/catalog";
+import { BINGO_ALL_COLUMNS, BINGO_COLUMNS, buildCatalog } from "@/lib/catalog";
 import { parseTable } from "@/lib/csv";
 import { DROPS_COLUMNS, parseDrops } from "@/lib/drops";
 import { buildRoster } from "@/lib/roster";
@@ -21,7 +21,7 @@ export const BONUS_TYPES = [
  * repeats across categories — both cases the item-only join would get wrong.
  */
 export const BINGO_CSV = [
-  BINGO_COLUMNS.join(","),
+  BINGO_ALL_COLUMNS.join(","),
   "Callisto,Dragon 2h sword,CallistoDragon 2h sword,\"40,331,957\",60,1",
   "Callisto,Voidwaker hilt,CallistoVoidwaker hilt,\"120,000,000\",80,1",
   "Callisto,Any Shard,CallistoAny Shard,\"1,000,000\",5,3",
