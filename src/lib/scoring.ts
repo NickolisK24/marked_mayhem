@@ -5,13 +5,14 @@
  *
  *   - A drop scores `catalog points × multiplier`.
  *   - The multiplier is 1.0 for the first N of a given item **per team**, where
- *     N is that item's `Full pts qty limit` (default 1; some items are 3, 4 or 5).
+ *     N is that item's `Full pts qty limit` (default 1).
  *   - Every drop past that limit scores 0.5×. Duplicates are intentional and
  *     still count — they are never discarded.
  *   - Order therefore matters: each team's drops are processed oldest-first so
  *     the first N are the ones that get full credit.
- *   - Team totals carry drop points and bonus points separately, plus the count
- *     of distinct items claimed.
+ *   - Bonus points come from the drop log's `Bonus` column, typed in by event
+ *     managers. They are kept separate from drop points so the leaderboard can
+ *     show the split, and both add into the team total.
  *   - Player totals use the same arithmetic, attributed to the individual. The
  *     quantity limit is a team-level resource, so a player's drop inherits
  *     whatever multiplier the team-level sequence gave it.
@@ -20,13 +21,9 @@
  */
 
 import { TEAM_COLORS } from "@/config/event";
-import { catalogKey, normalize } from "./text";
+import { catalogKey } from "./text";
 import type {
-  AwardedBonus,
-  BonusRow,
   Catalog,
-  ClaimMap,
-  FeedEntry,
   PlayerScore,
   RawDrop,
   Roster,
@@ -39,11 +36,8 @@ export interface ScoreInput {
   drops: RawDrop[];
   catalog: Catalog;
   roster: Roster;
-  bonuses: BonusRow[];
-  /** Recognised bonus_type values; unrecognised ones still score but are flagged. */
-  bonusTypes: readonly string[];
-  /** Tab names, so warnings can name the tab a staff member must open. */
-  tabs: { drops: string; bonus: string };
+  /** Tab name, so warnings can name the tab a staff member must open. */
+  dropsTab: string;
   /** True when the drop log has usable timestamps. */
   hasTimestamps: boolean;
 }
@@ -75,8 +69,7 @@ function orderDrops(drops: RawDrop[], hasTimestamps: boolean): RawDrop[] {
 }
 
 export function scoreEvent(input: ScoreInput): ScoreResult {
-  const { drops, catalog, roster, bonuses, bonusTypes, tabs, hasTimestamps } =
-    input;
+  const { drops, catalog, roster, dropsTab, hasTimestamps } = input;
   const warnings: Warning[] = [];
 
   /* --- accumulators, seeded from the roster so a team with zero drops still
@@ -88,14 +81,12 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
     teamScores.set(team.name, {
       name: team.name,
       captain: team.captain,
-      colorIndex:
-        team.colorIndex < TEAM_COLORS.length ? team.colorIndex : -1,
+      colorIndex: team.colorIndex < TEAM_COLORS.length ? team.colorIndex : -1,
       dropPoints: 0,
       bonusPoints: 0,
       totalPoints: 0,
       uniques: 0,
       dropCount: 0,
-      bonuses: [],
     });
     teamUniques.set(team.name, new Set());
   }
@@ -116,35 +107,79 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
 
   /** How many of each item a team has logged so far: `${team}::${itemKey}`. */
   const seenCount = new Map<string, number>();
-  const claims: ClaimMap = new Map();
-  const feed: FeedEntry[] = [];
-
-  /* --- drops ---------------------------------------------------------------- */
 
   for (const drop of orderDrops(drops, hasTimestamps)) {
-    const player = roster.resolve(drop.user);
-    if (!player) {
+    /* --- which team does this row belong to? --------------------------- */
+
+    // The roster is authoritative when the RSN resolves: it is edited once,
+    // before the event, while the drop log's Team column is typed on every row.
+    // A bonus row may carry only a team name, with no player at all.
+    const player = drop.user === "" ? null : roster.resolve(drop.user);
+    const rowTeam = drop.team === "" ? null : roster.resolveTeam(drop.team);
+    const team = player?.team ?? rowTeam;
+
+    if (team === null) {
       warnings.push({
-        kind: "unknownPlayer",
-        tab: tabs.drops,
+        kind: drop.user === "" ? "unknownTeam" : "unknownPlayer",
+        tab: dropsTab,
         row: drop.row,
-        value: drop.user,
-        message: `"${drop.user}" is not on any roster. Add the RSN to the roster cell for that player (separated by a "/") and this drop will score.`,
+        value: drop.user || drop.team,
+        message:
+          drop.user === ""
+            ? `"${drop.team}" does not match any team on the roster, so this row was not scored.`
+            : `"${drop.user}" is not on any roster, and no recognised team was given either, so this row was not scored.`,
       });
       continue;
     }
 
-    // The roster is authoritative for team membership: it is edited once, before
-    // the event, while the drop log's Team column is typed on every row.
-    const team = player.team;
-    if (drop.team !== "" && roster.resolveTeam(drop.team) !== team) {
+    const teamScore = teamScores.get(team);
+    if (!teamScore) {
+      // Only reachable if the roster is internally inconsistent.
+      warnings.push({
+        kind: "unknownTeam",
+        tab: dropsTab,
+        row: drop.row,
+        value: team,
+        message: `Team "${team}" is on the roster but has no leaderboard entry; this row was not scored.`,
+      });
+      continue;
+    }
+
+    if (player && rowTeam !== null && rowTeam !== team) {
       warnings.push({
         kind: "teamMismatch",
-        tab: tabs.drops,
+        tab: dropsTab,
         row: drop.row,
         value: drop.team,
         message: `Row says team "${drop.team}" but ${player.displayName} is on ${team} in the roster. Scored for ${team}.`,
       });
+    }
+
+    /* --- hand-entered bonus points -------------------------------------- */
+
+    if (drop.bonus !== null) {
+      teamScore.bonusPoints += drop.bonus;
+    }
+
+    /* --- the item, when the row has one --------------------------------- */
+
+    if (drop.boss === "" && drop.drop === "") continue;
+
+    // A bonus can be awarded from the Team column alone, but an item drop
+    // cannot: crediting one to whichever team the row happens to name would
+    // silently move points on the strength of a hand-typed cell.
+    if (!player) {
+      warnings.push({
+        kind: "unknownPlayer",
+        tab: dropsTab,
+        row: drop.row,
+        value: drop.user,
+        message:
+          drop.user === ""
+            ? `"${drop.drop}" has no User, so it could not be credited to a player and was not scored.`
+            : `"${drop.user}" is not on any roster. Add the RSN to the roster cell for that player (separated by a "/") and this drop will score.`,
+      });
+      continue;
     }
 
     const entry = catalog.byKey.get(catalogKey(drop.boss, drop.drop));
@@ -152,7 +187,7 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
       const known = catalog.byCategory.has(drop.boss);
       warnings.push({
         kind: known ? "unknownItem" : "bossNotInCatalog",
-        tab: tabs.drops,
+        tab: dropsTab,
         row: drop.row,
         value: `${drop.boss} — ${drop.drop}`,
         message: known
@@ -162,19 +197,7 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
       continue;
     }
 
-    const teamScore = teamScores.get(team);
     const playerScore = playerScores.get(player.id);
-    if (!teamScore || !playerScore) {
-      // Only reachable if the roster is internally inconsistent.
-      warnings.push({
-        kind: "unknownTeam",
-        tab: tabs.drops,
-        row: drop.row,
-        value: team,
-        message: `Team "${team}" is on the roster but has no leaderboard entry; this drop was not scored.`,
-      });
-      continue;
-    }
 
     const countKey = `${team}::${entry.key}`;
     const already = seenCount.get(countKey) ?? 0;
@@ -187,102 +210,13 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
     teamScore.dropCount += 1;
     teamUniques.get(team)?.add(entry.key);
 
-    playerScore.points += points;
-    playerScore.dropCount += 1;
-
-    const claimed = claims.get(entry.key);
-    if (claimed) {
-      if (!claimed.includes(team)) claimed.push(team);
-    } else {
-      claims.set(entry.key, [team]);
+    if (playerScore) {
+      playerScore.points += points;
+      playerScore.dropCount += 1;
     }
-
-    feed.push({
-      id: `${drop.row}-${entry.key}`,
-      row: drop.row,
-      team,
-      player: player.displayName,
-      rsn: drop.user,
-      boss: entry.category,
-      item: entry.item,
-      basePoints: entry.points,
-      multiplier,
-      points,
-      halfPoints: multiplier < 1,
-      timestamp: drop.timestamp,
-    });
   }
 
-  /* --- bonuses -------------------------------------------------------------- */
-
-  // The catalog's Misc. and Team Challenges sections already list every bonus
-  // and what it is worth, so the bonus tab does not have to repeat the points —
-  // a blank points cell falls back to the catalog value.
-  const catalogBonusPoints = new Map<string, number>();
-  for (const entry of catalog.bonusEntries) {
-    catalogBonusPoints.set(normalize(entry.item), entry.points);
-  }
-
-  const recognised = new Set([
-    ...catalogBonusPoints.keys(),
-    ...bonusTypes.map(normalize),
-  ]);
-
-  for (const bonus of bonuses) {
-    const teamName = roster.resolveTeam(bonus.team);
-    const teamScore = teamName ? teamScores.get(teamName) : undefined;
-
-    if (!teamScore) {
-      warnings.push({
-        kind: "unknownTeam",
-        tab: tabs.bonus,
-        row: bonus.row,
-        value: bonus.team,
-        message: `"${bonus.team}" does not match any team name on the roster, so this bonus was not awarded.`,
-      });
-      continue;
-    }
-
-    const typeKey = normalize(bonus.bonusType);
-    const points = bonus.points ?? catalogBonusPoints.get(typeKey) ?? null;
-
-    if (points === null) {
-      warnings.push({
-        kind: "unparsedNumber",
-        tab: tabs.bonus,
-        row: bonus.row,
-        value: bonus.bonusType,
-        message: `Bonus "${bonus.bonusType}" for ${teamScore.name} has no points value, and none could be found in the item catalog, so it was not awarded.`,
-      });
-      continue;
-    }
-
-    const isKnownType = recognised.has(typeKey);
-    if (!isKnownType) {
-      // Awarded anyway. A typo in bonus_type must never silently cost a team
-      // points that were already decided by staff.
-      warnings.push({
-        kind: "unknownBonusType",
-        tab: tabs.bonus,
-        row: bonus.row,
-        value: bonus.bonusType,
-        message: `"${bonus.bonusType}" is not listed under Misc. or Team Challenges in the item catalog. The ${points} points were still awarded to ${teamScore.name}.`,
-      });
-    }
-
-    const awarded: AwardedBonus = {
-      team: teamScore.name,
-      bonusType: bonus.bonusType,
-      points,
-      awardedAt: bonus.awardedAt,
-      notes: bonus.notes,
-      recognisedType: isKnownType,
-    };
-    teamScore.bonuses.push(awarded);
-    teamScore.bonusPoints += points;
-  }
-
-  /* --- totals and ordering -------------------------------------------------- */
+  /* --- totals and ordering -------------------------------------------- */
 
   const teams = [...teamScores.values()];
   for (const team of teams) {
@@ -305,15 +239,9 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
       a.displayName.localeCompare(b.displayName),
   );
 
-  // Newest first. Feed order mirrors the scoring order, so reversing it is
-  // correct whether ordering came from timestamps or row order.
-  feed.reverse();
-
   return {
     teams,
     players,
-    feed,
-    claims,
     warnings,
     ordering: hasTimestamps ? "timestamp" : "rowOrder",
   };

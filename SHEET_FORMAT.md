@@ -121,9 +121,9 @@ Two categories are **not** bosses:
   Uniques
 - `Team Challenges` — Team Challenge placements, Team Participation
 
-These are awarded by hand on the `BONUS` tab. They are excluded from the boss
-progress view and from drop scoring entirely. **Do not log them in `DROPS`** — a
-row that does will be skipped and flagged.
+These are not scoreable items. They are awarded by typing the points into the
+`Bonus` column of the `DROPS` tab (see below). Their rows in `BINGO` are there
+as a reference list of what each bonus is worth.
 
 ---
 
@@ -137,14 +137,42 @@ Rows are appended during the event. Only these columns are read:
 | `User` | yes | The RSN that got the drop. Any RSN on the roster works — see aliases below. |
 | `Boss` | yes | Must match a `Category` in `BINGO`. |
 | `Drop` | yes | Must match an `Item` in `BINGO`, **for that boss**. |
+| `Bonus` | no | Manually-awarded points. See below. |
 | `Timestamp` | no | Optional. See below. |
+
+### Bonus points
+
+`Bonus` is the one number the site takes from this tab as written, because it is
+typed in by an event manager rather than calculated. Whatever is in it is added
+to that row's team, on top of anything the row's item scores.
+
+A bonus row does **not** need a boss or an item — a row with just a team and a
+bonus is perfectly valid:
+
+| Team | User | Boss | Drop | Bonus |
+| --- | --- | --- | --- | --- |
+| Lauren | smol tiddies | Callisto | Dragon 2h sword | |
+| Lauren | | | | 250 |
+| Oops | Oops Im Main | | | 400 |
+
+Bonus points show separately from drop points on the team leaderboard and both
+add into the team total. They are **not** added to individual player totals — a
+bonus belongs to the team.
+
+A bonus row needs either a `Team` or a `User` so the site knows who to award it
+to; a row with neither is flagged. A blank, zero or `#REF!` bonus is simply
+ignored, not warned about.
+
+Note that an **item** drop still needs a `User` that is on the roster — a team
+name alone is not enough for one. That is deliberate: crediting an item on the
+strength of a hand-typed team cell would move points without anyone noticing.
 
 ### Everything else in this tab is ignored
 
 `Points Earned`, `# from Team`, `Price`, `# Seen`, `# for Full Points`,
-`Full Points`, `Multiplier` and `Bonus` are **not read**. The site recomputes
-all of it from `BINGO`. You can leave those columns broken, empty, or delete
-them entirely — it makes no difference to the website.
+`Full Points` and `Multiplier` are **not read**. The site recomputes all of it
+from `BINGO`. You can leave those columns broken, empty, or delete them
+entirely — it makes no difference to the website.
 
 This is intentional. It means the site's numbers are testable and cannot be
 thrown off by a formula that got dragged wrong.
@@ -218,53 +246,6 @@ that situation the site refuses to guess and flags the drop instead.
 
 ---
 
-## `BONUS` — manually-awarded points
-
-A new flat tab. Paste this as row 1:
-
-```
-team	bonus_type	points	awarded_at	notes
-```
-
-(That is five cells, A1 to E1, tab-separated — pasting the line above into A1
-will fill all five.)
-
-| Column | Required | Notes |
-| --- | --- | --- |
-| `team` | yes | Must match a team name from `TEAMS`. Capitalisation does not matter. |
-| `bonus_type` | yes | One of the list below. |
-| `points` | yes | A plain number. Commas are fine. |
-| `awarded_at` | no | Any date, or leave blank. |
-| `notes` | no | Free text, shown on the site. |
-
-Recognised `bonus_type` values:
-
-```
-Boss Pets
-Jars
-Bounty 1st
-Bounty 2nd
-Bounty 3rd
-Most Team Profit
-Most Team Uniques
-Team Challenge 1st
-Team Challenge 2nd
-Team Challenge 3rd
-Team Participation
-```
-
-A `bonus_type` outside this list **still awards its points** — it is only
-flagged as a warning. A typo must never silently cost a team points that staff
-already decided to give them.
-
-A row whose `team` does not match any roster team, or whose `points` cannot be
-read, is skipped and flagged.
-
-Bonus points are shown separately from drop points on the team leaderboard, and
-do **not** count toward individual player totals.
-
----
-
 ## `RULES` — the rules text
 
 Free text, one rule per row, read top to bottom. There is no header row — the
@@ -284,6 +265,7 @@ For each drop, in chronological order within a team:
 3. If that count is **below** the item's `Full pts qty limit`, the drop scores
    its full `Points`. Otherwise it scores **half**. Duplicates are intentional
    and still count as drops, they just score less.
+4. Anything in the row's `Bonus` column is added to that team's bonus points.
 
 Team totals are drop points plus bonus points, tracked separately. Uniques
 counts distinct catalog items claimed. Player totals use the same arithmetic,

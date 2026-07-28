@@ -46,37 +46,14 @@ export const FALLBACK_TEAM_COLOR = {
  */
 export const BONUS_CATEGORIES = ["Misc.", "Misc", "Team Challenges"];
 
-/** How many entries the live feed shows. */
-export const FEED_LIMIT = 50;
-
 /** Seconds between client polls, and the server-side cache window. */
 export const REVALIDATE_SECONDS = 30;
-
-/**
- * Recognised values for the bonus tab's `bonus_type` column. An unrecognised
- * type still awards its points — it is flagged, not dropped, so a typo can
- * never silently zero a team's bonus.
- */
-export const BONUS_TYPES = [
-  "Boss Pets",
-  "Jars",
-  "Bounty 1st",
-  "Bounty 2nd",
-  "Bounty 3rd",
-  "Most Team Profit",
-  "Most Team Uniques",
-  "Team Challenge 1st",
-  "Team Challenge 2nd",
-  "Team Challenge 3rd",
-  "Team Participation",
-];
 
 export interface TabConfig {
   drops: string;
   bingo: string;
   teams: string;
   rules: string;
-  bonus: string;
 }
 
 export function tabConfig(env: NodeJS.ProcessEnv = process.env): TabConfig {
@@ -85,6 +62,5 @@ export function tabConfig(env: NodeJS.ProcessEnv = process.env): TabConfig {
     bingo: env.TAB_BINGO?.trim() || "BINGO",
     teams: env.TAB_TEAMS?.trim() || "TEAMS",
     rules: env.TAB_RULES?.trim() || "RULES",
-    bonus: env.TAB_BONUS?.trim() || "BONUS",
   };
 }

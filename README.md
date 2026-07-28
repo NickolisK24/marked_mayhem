@@ -1,6 +1,6 @@
 # Marked Mayhem
 
-Live standings for the Marked Mayhem OSRS clan event — a points-based drop
+Live team standings for the Marked Mayhem OSRS clan event — a points-based drop
 competition between four teams, driven directly from the event's Google Sheet.
 
 Next.js (App Router) + TypeScript + Tailwind. No database, no auth, no build
@@ -47,7 +47,6 @@ Open http://localhost:3000.
 | `TAB_BINGO` | `BINGO` | Tab name for the item catalog. |
 | `TAB_TEAMS` | `TEAMS` | Tab name for the rosters. |
 | `TAB_RULES` | `RULES` | Tab name for the rules text. |
-| `TAB_BONUS` | `BONUS` | Tab name for manually-awarded bonuses. |
 | `SHEET_BASE_URL` | `https://docs.google.com` | Override for testing against a local fixture server. Leave unset in production. |
 
 The tab names are environment variables so that a tab renamed mid-event can be
@@ -91,8 +90,6 @@ name is wrong; the site distinguishes the two in its error banner.
 
 ### Before the event starts
 
-- Create the `BONUS` tab. The exact header row is in
-  [`SHEET_FORMAT.md`](./SHEET_FORMAT.md#bonus--manually-awarded-points).
 - Add a `Timestamp` column to `DROPS` (recommended — see below).
 - The event window is set in `src/config/event.ts` (`EVENT_START` and
   `EVENT_END`), currently 30 July 2026 17:00 to 9 August 2026 17:00 US Eastern.
@@ -123,9 +120,12 @@ Changing an environment variable requires a redeploy to take effect
 ## How scoring works
 
 Scoring is recomputed from scratch in `src/lib/scoring.ts`. The sheet's own
-`Points Earned`, `Multiplier`, `Full Points`, `# Seen`, `# from Team`,
-`# for Full Points` and `Bonus` columns are **not read** — those formulas are
-partly broken, and a scoring path that reads them cannot be tested.
+`Points Earned`, `Multiplier`, `Full Points`, `# Seen`, `# from Team` and
+`# for Full Points` columns are **not read** — those formulas are partly broken,
+and a scoring path that reads them cannot be tested.
+
+`Bonus` is the exception: it is not a formula but a number an event manager
+types in, so it is read as given.
 
 For each drop, in chronological order within a team:
 
@@ -134,16 +134,21 @@ For each drop, in chronological order within a team:
 2. If the team has fewer than `Full pts qty limit` of that item already, it
    scores full points. Otherwise it scores **half** — duplicates still count as
    drops, they just score less.
+3. Anything in the row's `Bonus` column is added to that team's bonus points.
+   That column is typed in by event managers, so it is read as given rather
+   than recomputed.
 
-Team totals carry drop points and bonus points separately. Player totals use the
-same arithmetic; because the quantity limit is a team-level resource, a player
+Team totals carry drop points and bonus points separately, and the leaderboard
+shows the split. Player totals cover drops only — a bonus belongs to a team, not
+to an individual. Because the quantity limit is a team-level resource, a player
 who is second for their team gets the half.
 
 ### Drop ordering
 
 If `DROPS` has a `Timestamp` column, drops are ordered by it. Otherwise they are
-ordered by row position, which is correct as long as rows are only appended.
-The drop feed says which mode is in use.
+ordered by row position, which is correct as long as rows are only appended. The
+order only affects which of a repeated item gets full points, never the total
+number of drops counted.
 
 ---
 
@@ -189,9 +194,9 @@ tests/format.test.ts    points, relative time and the event-window countdown
 ```
 
 The negative fixtures matter as much as the positive ones: missing columns,
-blank rows, `#REF!` cells, comma-formatted prices, an unknown RSN, an unknown
-item, a team with zero drops, and a duplicate item crossing its quantity limit
-mid-sequence.
+blank rows, `#REF!` cells, comma-formatted numbers, an unknown RSN, an unknown
+item, a bonus with nobody to award it to, a team with zero drops, and a
+duplicate item crossing its quantity limit mid-sequence.
 
 ### Testing without the real sheet
 
@@ -216,7 +221,6 @@ src/lib/               parsing and scoring — pure, no React, no I/O except she
   catalog.ts           the BINGO tab
   roster.ts            the TEAMS tab
   drops.ts             the DROPS tab
-  bonus.ts             the BONUS tab
   rules.ts             the RULES tab
   scoring.ts           the scoring function — pure, fully tested
   sheet.ts             the only module that fetches

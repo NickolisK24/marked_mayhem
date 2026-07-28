@@ -14,14 +14,12 @@ export type WarningKind =
   | "unknownPlayer"
   | "unknownItem"
   | "unknownTeam"
-  | "bonusCategoryInDrops"
   | "incompleteRow"
   | "teamMismatch"
   | "catalogRowSkipped"
   | "catalogDuplicate"
   | "catalogKeyMismatch"
   | "unparsedNumber"
-  | "unknownBonusType"
   | "rosterAmbiguousAlias"
   | "bossNotInCatalog";
 
@@ -114,34 +112,14 @@ export interface RawDrop {
   user: string;
   boss: string;
   drop: string;
+  /** Hand-entered bonus points on this row. Null on ordinary drop rows. */
+  bonus: number | null;
   /**
    * Epoch ms, when the DROPS tab has a Timestamp column. Null otherwise — the
    * scorer then falls back to sheet row order, which is chronological because
    * rows are appended live.
    */
   timestamp: number | null;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Bonuses (BONUS tab)                                                         */
-/* -------------------------------------------------------------------------- */
-
-export interface BonusRow {
-  row: number;
-  team: string;
-  bonusType: string;
-  points: number | null;
-  awardedAt: number | null;
-  notes: string;
-}
-
-export interface AwardedBonus {
-  team: string;
-  bonusType: string;
-  points: number;
-  awardedAt: number | null;
-  notes: string;
-  recognisedType: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -158,7 +136,6 @@ export interface TeamScore {
   /** Distinct catalog entries claimed at least once. */
   uniques: number;
   dropCount: number;
-  bonuses: AwardedBonus[];
 }
 
 export interface PlayerScore {
@@ -172,31 +149,9 @@ export interface PlayerScore {
   dropCount: number;
 }
 
-export interface FeedEntry {
-  id: string;
-  row: number;
-  team: string;
-  player: string;
-  /** The RSN as it appeared in the drop log, when it differs from the display name. */
-  rsn: string;
-  boss: string;
-  item: string;
-  basePoints: number;
-  multiplier: number;
-  points: number;
-  /** True when this drop was past its team's full-points quantity limit. */
-  halfPoints: boolean;
-  timestamp: number | null;
-}
-
-/** Which teams have claimed a given catalog entry. */
-export type ClaimMap = Map<string, string[]>;
-
 export interface ScoreResult {
   teams: TeamScore[];
   players: PlayerScore[];
-  feed: FeedEntry[];
-  claims: ClaimMap;
   warnings: Warning[];
   /** How drops were ordered for the multiplier. */
   ordering: "timestamp" | "rowOrder";
@@ -205,21 +160,6 @@ export interface ScoreResult {
 /* -------------------------------------------------------------------------- */
 /* API payload                                                                 */
 /* -------------------------------------------------------------------------- */
-
-export interface BossProgressItem {
-  key: string;
-  item: string;
-  points: number;
-  fullPointsLimit: number;
-  claimedBy: string[];
-}
-
-export interface BossProgress {
-  boss: string;
-  items: BossProgressItem[];
-  totalPoints: number;
-  claimedCount: number;
-}
 
 export interface RosterTeam {
   name: string;
@@ -241,9 +181,6 @@ export interface EventPayload {
   eventEnd: string | null;
   teams: TeamScore[];
   players: PlayerScore[];
-  feed: FeedEntry[];
-  bosses: BossProgress[];
-  bonusCatalog: Array<{ category: string; item: string; points: number }>;
   rules: string[];
   rosters: RosterTeam[];
   warnings: Warning[];
