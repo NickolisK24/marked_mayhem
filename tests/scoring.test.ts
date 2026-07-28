@@ -882,13 +882,16 @@ describe("scoring — a row with no User scores for its team", () => {
     expect(result.warnings).toEqual([]);
   });
 
-  it("counts a team award as a drop and a unique for the team", () => {
+  it("keeps an award out of the team's drop and unique counts", () => {
     const result = buildFixture({
       drops: dropsCsv([["Lauren", "", "Misc.", "Boss Pets"]]),
     });
 
-    expect(team(result, "Lauren").dropCount).toBe(1);
-    expect(team(result, "Lauren").uniques).toBe(1);
+    // It scored, but it is an award rather than an item: counting it as a
+    // unique would make "Most Team Uniques" a unique in its own right.
+    expect(team(result, "Lauren").totalPoints).toBe(50);
+    expect(team(result, "Lauren").dropCount).toBe(0);
+    expect(team(result, "Lauren").uniques).toBe(0);
   });
 
   it("credits no player when the row names nobody", () => {
@@ -1040,13 +1043,18 @@ describe("scoring — individual and whole-team rows in one log", () => {
     expect(result.warnings).toEqual([]);
   });
 
-  it("counts a whole-team row toward the team's drops and uniques", () => {
+  it("lists a whole-team row on the team instead of counting it", () => {
     const result = buildFixture({
       drops: dropsCsv([["Lauren", "", "Team Challenges", "Team Challenge 1st"]]),
     });
 
-    expect(team(result, "Lauren").dropCount).toBe(1);
-    expect(team(result, "Lauren").uniques).toBe(1);
+    const scored = team(result, "Lauren");
+    expect(scored.dropCount).toBe(0);
+    expect(scored.uniques).toBe(0);
+    expect(scored.awards).toHaveLength(1);
+    expect(scored.awards[0]?.item).toBe("Team Challenge 1st");
+    expect(scored.awards[0]?.points).toBe(100);
+    expect(scored.awards[0]?.category).toBe("Team Challenges");
   });
 
   it("shares one per-team quantity count across both shapes", () => {
@@ -1068,5 +1076,110 @@ describe("scoring — individual and whole-team rows in one log", () => {
     });
 
     expect(result.warnings.map((w) => w.kind)).toContain("unknownTeam");
+  });
+});
+
+describe("scoring — whole-team challenges listed on the team", () => {
+  // Awards are not item drops, so they stay out of the uniques and drop counts
+  // — otherwise "Most Team Uniques" would itself be a unique. A whole-team one
+  // is collected onto the team instead, because with no player named there is
+  // no drop breakdown anywhere that would otherwise show it.
+
+  it("collects a whole-team award onto the team", () => {
+    const result = buildFixture({
+      drops: dropsCsv([["Lauren", "", "Misc.", "Boss Pets"]]),
+    });
+
+    const [award] = team(result, "Lauren").awards;
+    expect(award?.item).toBe("Boss Pets");
+    expect(award?.category).toBe("Misc.");
+    expect(award?.points).toBe(50);
+    expect(award?.row).toBe(2);
+  });
+
+  it("does not list an award that names a player", () => {
+    // That one shows in the player's own breakdown, so listing it on the team
+    // as well would show the same award twice on two different pages.
+    const result = buildFixture({
+      drops: dropsCsv([["Lauren", "Charzbtw", "Misc.", "Boss Pets"]]),
+    });
+
+    expect(team(result, "Lauren").awards).toEqual([]);
+    expect(player(result, "Charzbtw").drops).toHaveLength(1);
+    expect(team(result, "Lauren").totalPoints).toBe(50);
+  });
+
+  it("keeps an individual award out of the team's item counts too", () => {
+    const result = buildFixture({
+      drops: dropsCsv([["Lauren", "Charzbtw", "Misc.", "Boss Pets"]]),
+    });
+
+    expect(team(result, "Lauren").uniques).toBe(0);
+    expect(team(result, "Lauren").dropCount).toBe(0);
+  });
+
+  it("lists several awards oldest first", () => {
+    const result = buildFixture({
+      drops: dropsCsv([
+        ["Lauren", "", "Team Challenges", "Team Challenge 1st"],
+        ["Lauren", "", "Misc.", "Boss Pets"],
+      ]),
+    });
+
+    expect(team(result, "Lauren").awards.map((a) => a.item)).toEqual([
+      "Team Challenge 1st",
+      "Boss Pets",
+    ]);
+  });
+
+  it("shows the reduced points on a repeated award", () => {
+    const result = buildFixture({
+      drops: dropsCsv([
+        ["Lauren", "", "Misc.", "Boss Pets"],
+        ["Lauren", "", "Misc.", "Boss Pets"],
+      ]),
+    });
+
+    // The quantity rules still apply, and the listing shows what each scored
+    // rather than the catalog value, so 50 then 25 is visible on the card.
+    expect(team(result, "Lauren").awards.map((a) => a.points)).toEqual([50, 25]);
+  });
+
+  it("gives each award a distinct key for rendering", () => {
+    const result = buildFixture({
+      drops: dropsCsv([
+        ["Lauren", "", "Misc.", "Boss Pets"],
+        ["Lauren", "", "Misc.", "Boss Pets"],
+      ]),
+    });
+
+    const ids = team(result, "Lauren").awards.map((a) => a.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("leaves ordinary drops counted as before", () => {
+    const result = buildFixture({
+      drops: dropsCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"],
+        ["Lauren", "canofeesh", "Callisto", "Voidwaker hilt"],
+        ["Lauren", "", "Team Challenges", "Team Challenge 1st"],
+      ]),
+    });
+
+    const scored = team(result, "Lauren");
+    expect(scored.uniques).toBe(2);
+    expect(scored.dropCount).toBe(2);
+    expect(scored.awards).toHaveLength(1);
+    // The award still counts toward the total the leaderboard sorts on.
+    expect(scored.totalPoints).toBe(240);
+  });
+
+  it("gives a team with no awards an empty list, not undefined", () => {
+    const result = buildFixture({
+      drops: dropsCsv([["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"]]),
+    });
+
+    expect(team(result, "Lauren").awards).toEqual([]);
+    expect(team(result, "Faedaa").awards).toEqual([]);
   });
 });

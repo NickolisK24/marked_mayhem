@@ -12,10 +12,23 @@
  * a mismatch is reported, never acted on.
  */
 
+import { AWARD_CATEGORIES } from "@/config/event";
 import type { SheetRow, SheetTable } from "./csv";
 import { parseLimit, parseNumber } from "./numbers";
 import { catalogKey, normalize, squash, stripLimitSuffix, tidy } from "./text";
 import type { Catalog, CatalogEntry, Warning } from "./types";
+
+const awardCategorySet = new Set(AWARD_CATEGORIES.map(normalize));
+
+/**
+ * True for a category holding awards rather than boss drops.
+ *
+ * Scoring does not consult this — awards score like anything else. It separates
+ * them from the item statistics and routes whole-team ones onto the team card.
+ */
+export function isAwardCategory(category: string): boolean {
+  return awardCategorySet.has(normalize(category));
+}
 
 /**
  * Columns the catalog cannot work without.

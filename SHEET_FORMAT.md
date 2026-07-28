@@ -158,8 +158,14 @@ apart:
 | Oops | | Misc. | Jars | whole team |
 | Lauren | Charzbtw | Callisto | Dragon 2h sword | one person |
 
-Either way the team banks the points, and they count toward its drops and
-uniques. Only a named row moves anybody's individual standing.
+Either way the team banks the points. Only a named row moves anybody's
+individual standing.
+
+`Misc.` and `Team Challenges` are kept out of a team's **Uniques** and **Drops**
+counts — they are awards, not items, and counting "Most Team Uniques" as a
+unique would be odd. A whole-team one is listed by name under **Team awards** on
+the team's card instead, which is the only place it can appear: with nobody
+named, no player's breakdown carries it.
 
 **An unrecognised RSN is a different matter.** If `User` is filled in but does
 not match the roster, the row is flagged and **not** scored, rather than falling
@@ -354,8 +360,9 @@ anything is matched or displayed, so:
 To cap another item, add the suffix to its name in `BINGO`. Nothing needs
 changing on the site.
 
-Uniques counts distinct catalog items claimed. Player totals use the same
-arithmetic, attributed to whoever is named in `User`; because the quantity limit
-is a team-level resource, a player who is second for their team gets the half.
+Uniques counts distinct catalog items claimed, excluding `Misc.` and
+`Team Challenges`. Player totals use the same arithmetic, attributed to whoever
+is named in `User`; because the quantity limit is a team-level resource, a
+player who is second for their team gets the half.
 
 GP values are not tracked.

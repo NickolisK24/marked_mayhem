@@ -45,6 +45,16 @@ export const FALLBACK_TEAM_COLOR = {
   soft: "rgba(148, 163, 184, 0.16)",
 };
 
+/**
+ * Catalog categories holding awards rather than boss drops.
+ *
+ * This is a presentation distinction, not a scoring one — an award scores
+ * exactly like any other catalog entry. It keeps awards out of the item
+ * statistics, since a team challenge is neither a unique item nor a drop, and
+ * it lets a whole-team award be listed on the team card, which is the only
+ * place it can appear: with no player named, no drop breakdown would show it.
+ */
+export const AWARD_CATEGORIES = ["Misc.", "Misc", "Team Challenges"];
 
 /** Seconds between client polls, and the server-side cache window. */
 export const REVALIDATE_SECONDS = 30;

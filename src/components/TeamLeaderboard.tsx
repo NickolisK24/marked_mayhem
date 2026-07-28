@@ -68,6 +68,34 @@ export function TeamLeaderboard({ teams }: { teams: TeamScore[] }) {
               <Stat label="Uniques" value={formatCount(team.uniques)} />
               <Stat label="Drops" value={formatCount(team.dropCount)} />
             </dl>
+
+            {/* Challenges the whole team completed. Listed rather than counted:
+                they are not item drops, and with no player named there is no
+                drop breakdown anywhere else that would show them. */}
+            {team.awards.length > 0 && (
+              <div className="mt-3 border-t border-ink-edge pt-2.5">
+                {/* "Team awards" rather than "Team challenges": these come
+                    from Misc. as well, and Jars is not a challenge. */}
+                <h4 className="text-[0.65rem] tracking-wider text-parchment-faint uppercase">
+                  Team awards
+                </h4>
+                <ul className="mt-1.5 space-y-1">
+                  {team.awards.map((award) => (
+                    <li
+                      key={award.id}
+                      className="flex items-baseline justify-between gap-3 text-sm"
+                    >
+                      <span className="min-w-0 truncate text-parchment">
+                        {award.item}
+                      </span>
+                      <span className="shrink-0 text-parchment-faint tabular-nums">
+                        {formatPoints(award.points)} pts
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </article>
         );
       })}
