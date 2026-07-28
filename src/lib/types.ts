@@ -65,20 +65,15 @@ export interface CatalogEntry {
 }
 
 export interface Catalog {
-  /** Scoreable entries only — bonus categories are excluded. */
+  /**
+   * Every scoreable entry by composite key. Includes the team-award categories
+   * (Misc. / Team Challenges), which score like any other entry.
+   */
   byKey: Map<string, CatalogEntry>;
   /** Every scoreable entry, in sheet order. */
   entries: CatalogEntry[];
-  /** Boss name (as typed) -> its entries, in sheet order. Bonus categories excluded. */
+  /** Category (as typed) -> its entries, in sheet order. */
   byCategory: Map<string, CatalogEntry[]>;
-  /** Entries under Misc. / Team Challenges, in sheet order. */
-  bonusEntries: CatalogEntry[];
-  /**
-   * Bonus entries by composite key, so a Misc. / Team Challenges row in the
-   * drop log can be priced from the catalog. Kept apart from `byKey` because
-   * these award team bonus points rather than drop points.
-   */
-  bonusByKey: Map<string, CatalogEntry>;
 }
 
 /* -------------------------------------------------------------------------- */
