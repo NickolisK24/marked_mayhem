@@ -35,9 +35,43 @@ export function tidy(value: string | null | undefined): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
-/** The composite catalog key: normalized boss + normalized item. */
+/**
+ * A per-team cap written into the item name, e.g. "Infernal Cape (Limit 5)".
+ *
+ * The catalog encodes caps this way rather than in a column of their own. The
+ * suffix is a note to the reader, not part of the item's name — the drop log
+ * records the plain "Infernal Cape" — so it is stripped from the name and read
+ * as the cap.
+ */
+const LIMIT_SUFFIX = /\s*\(\s*limit\s*(\d+)\s*\)\s*$/i;
+
+export interface NamedLimit {
+  /** The item name with any "(Limit N)" suffix removed. */
+  name: string;
+  /** N, or null when the name carried no suffix. */
+  limit: number | null;
+}
+
+export function stripLimitSuffix(item: string): NamedLimit {
+  const match = LIMIT_SUFFIX.exec(item);
+  if (!match) return { name: tidy(item), limit: null };
+
+  const limit = Number(match[1]);
+  return {
+    name: tidy(item.slice(0, match.index)),
+    limit: Number.isFinite(limit) && limit >= 1 ? limit : null,
+  };
+}
+
+/**
+ * The composite catalog key: normalized boss + normalized item.
+ *
+ * The "(Limit N)" suffix is stripped from both sides, so the catalog's
+ * "Infernal Cape (Limit 5)" and the drop log's "Infernal Cape" are the same
+ * item however each was written.
+ */
 export function catalogKey(boss: string, item: string): string {
-  return `${normalize(boss)}|${normalize(item)}`;
+  return `${normalize(boss)}|${normalize(stripLimitSuffix(item).name)}`;
 }
 
 /** True when every cell in the row is blank after trimming. */

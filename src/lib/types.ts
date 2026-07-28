@@ -21,7 +21,6 @@ export type WarningKind =
   | "catalogKeyMismatch"
   | "unparsedNumber"
   | "pendingPrice"
-  | "scoringCapUnmatched"
   | "rosterAmbiguousAlias"
   | "bossNotInCatalog";
 

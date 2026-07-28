@@ -134,10 +134,11 @@ For each drop, in chronological order within a team:
    same item is worth different points at different bosses.
 2. The team's first of that item scores full points; every later one scores
    **half**, with no ceiling.
-3. A few items are capped per team instead — configured in
-   `src/config/event.ts` as `ITEM_SCORING_CAPS`. Past the cap they score
-   nothing. Infernal cape is capped at 5: 60, then 30 for capes two to five,
-   then 0.
+3. An item whose catalog name ends in `(Limit N)` is capped per team instead:
+   past N it scores nothing. `Infernal Cape (Limit 5)` scores 60, then 30 for
+   capes two to five, then 0. The suffix is stripped from the name before
+   anything is matched or displayed, so the drop log's plain `Infernal Cape`
+   still joins to it.
 4. Anything in the row's `Bonus` column is added to that team's bonus points.
    That column is typed in by event managers, so it is read as given rather
    than recomputed.

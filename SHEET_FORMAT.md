@@ -312,16 +312,33 @@ For each drop, in chronological order within a team:
 3. The team's **first** of that item scores its full `Points`. Every one after
    scores **half**, with no ceiling — a team can keep banking half points from
    duplicates for as long as they keep getting them.
-4. A short list of items is **capped** instead. Past the cap they score nothing
-   at all. Right now that is Infernal cape, capped at 5 per team: the first
-   scores 60, capes two to five score 30, and capes six onward score 0. They are
-   still listed in the player's breakdown, marked "over the cap", because the
-   team did receive them.
+4. An item whose catalog name ends in **`(Limit N)`** is capped instead. Past
+   N per team it scores nothing at all. They are still listed in the player's
+   breakdown, marked "over the cap", because the team did receive them.
 5. Anything in the row's `Bonus` column is added to that team's bonus points.
 
-The capped items are set in `src/config/event.ts` (`ITEM_SCORING_CAPS`), not in
-the sheet. If a cap is configured for an item name that is not in the catalog,
-the warnings panel says so rather than the cap quietly doing nothing.
+### Capping an item: `(Limit N)`
+
+Write the cap into the item's name in `BINGO`, which is what the catalog
+already does:
+
+| Category | Item | Points |
+| --- | --- | --- |
+| Zuk | `Infernal Cape (Limit 5)` | 60 |
+| Fortis Colosseum | `Dizana's quiver (Limit 5)` | 50 |
+
+An Infernal Cape then scores 60 for the team's first, 30 for capes two to five,
+and 0 for cape six onward.
+
+The `(Limit N)` part is a **note, not part of the name**. It is stripped before
+anything is matched or displayed, so:
+
+- the site shows the item as `Infernal Cape`
+- the drop log can record either `Infernal Cape` or `Infernal Cape (Limit 5)` —
+  both match
+
+To cap another item, add the suffix to its name in `BINGO`. Nothing needs
+changing on the site.
 
 Team totals are drop points plus bonus points, tracked separately. Uniques
 counts distinct catalog items claimed. Player totals use the same arithmetic,
