@@ -85,8 +85,21 @@ export function TeamLeaderboard({ teams }: { teams: TeamScore[] }) {
                       key={award.id}
                       className="flex items-baseline justify-between gap-3 text-sm"
                     >
-                      <span className="min-w-0 truncate text-parchment">
-                        {award.item}
+                      {/* Derived awards name their boss on a line of their own:
+                          "All Uniques (Not Shard)" is ambiguous across four of
+                          them, and inline it truncates away on a phone. Saying
+                          the site worked it out makes a wrong completion
+                          something you can spot rather than something that
+                          quietly adds points. */}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-parchment">
+                          {award.item}
+                        </span>
+                        {award.derived && (
+                          <span className="block truncate text-xs text-parchment-faint">
+                            {award.category} · completed
+                          </span>
+                        )}
                       </span>
                       <span className="shrink-0 text-parchment-faint tabular-nums">
                         {formatPoints(award.points)} pts

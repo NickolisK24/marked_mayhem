@@ -150,6 +150,13 @@ For each drop, in chronological order within a team:
    whereas a typo is a mistake, and falling back to a hand-typed team name
    would hide it while still moving the total.
 
+An `All Uniques` entry is never logged, so it is **derived**: a team holding
+every other non-shard, non-set entry its category lists is awarded it once, and
+the card marks it "completed" with the boss named. The sheet computes it with a
+formula, and a formula fills in a cell rather than appending a row to the drop
+log, so the completion existed only in the sheet's own totals. A hand-logged row
+suppresses the derivation, so the two can never both pay.
+
 Awards score into the team total like anything else, but are excluded from its
 uniques and drop counts — they are not items, and "Most Team Uniques" counting
 as a unique reads as a bug. A whole-team one is listed by name on the team card

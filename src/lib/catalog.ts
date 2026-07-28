@@ -55,6 +55,70 @@ export const BINGO_ALL_COLUMNS = [
 ] as const;
 
 
+/**
+ * Entries that stand for "the team collected everything else here" rather than
+ * for an item somebody received.
+ *
+ * The sheet works these out with a formula, and a formula fills in a cell — it
+ * cannot append a row to the drop log. So the completion exists in the sheet's
+ * own totals and nowhere the site can see it, which is why the site derives it
+ * instead. See `deriveAggregates` in scoring.ts.
+ */
+const ALL_UNIQUES = /^all uniques\b/;
+
+/** A set completion, itself an aggregate of pieces, e.g. "Completed Torva". */
+const SET_COMPLETION = /^completed\b/;
+
+/**
+ * "Any Shard" and friends. Shards are repeatable filler rather than one of a
+ * boss's uniques, and every catalog entry that mentions them agrees — they are
+ * named "All Uniques (Not Shard)".
+ */
+const SHARD = /\bshard\b/;
+
+/**
+ * What a team must have collected for an aggregate entry to be earned.
+ *
+ * Everything else under the same category, excluding shards and excluding other
+ * aggregates: a set completion is itself derived, so requiring it would mean
+ * one aggregate depending on another that may never have been logged.
+ */
+export interface Aggregate {
+  entry: CatalogEntry;
+  /** Catalog keys, all of which the team must hold. Never empty. */
+  requires: string[];
+}
+
+function buildAggregates(byCategory: Map<string, CatalogEntry[]>): Aggregate[] {
+  const aggregates: Aggregate[] = [];
+
+  for (const entries of byCategory.values()) {
+    for (const entry of entries) {
+      if (!ALL_UNIQUES.test(normalize(entry.item))) continue;
+
+      const requires = entries
+        .filter((other) => {
+          const name = normalize(other.item);
+          return (
+            other.key !== entry.key &&
+            !ALL_UNIQUES.test(name) &&
+            !SET_COMPLETION.test(name) &&
+            !SHARD.test(name)
+          );
+        })
+        .map((other) => other.key);
+
+      // A category with nothing else in it would otherwise award itself the
+      // moment the event started.
+      if (requires.length < 2) continue;
+
+      aggregates.push({ entry, requires });
+    }
+  }
+
+  return aggregates;
+}
+
 export interface CatalogResult {
   catalog: Catalog;
   warnings: Warning[];
@@ -203,7 +267,12 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
   }
 
   return {
-    catalog: { byKey, entries, byCategory },
+    catalog: {
+      byKey,
+      entries,
+      byCategory,
+      aggregates: buildAggregates(byCategory),
+    },
     warnings,
   };
 }

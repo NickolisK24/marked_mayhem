@@ -25,6 +25,10 @@
  *     awards rather than items, and a whole-team one is collected onto the team
  *     so the card can list it — otherwise it would appear nowhere at all, since
  *     there is no player breakdown to carry it.
+ *   - An "All Uniques" entry is never logged: the sheet computes it, and a
+ *     formula cannot append a row for the site to read. It is derived instead,
+ *     awarded to a team holding everything else its category lists, and skipped
+ *     when the row was logged by hand so it can never pay twice.
  *   - Player totals use the same arithmetic, attributed to the individual. The
  *     quantity limit is a team-level resource, so a player's drop inherits
  *     whatever multiplier the team-level sequence gave it.
@@ -233,6 +237,7 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
           item: entry.item,
           points,
           row: drop.row,
+          derived: false,
         });
       }
     } else {
@@ -263,7 +268,34 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
 
   const teams = [...teamScores.values()];
   for (const team of teams) {
-    team.uniques = teamUniques.get(team.name)?.size ?? 0;
+    const claimed = teamUniques.get(team.name) ?? new Set<string>();
+    team.uniques = claimed.size;
+
+    /* --- "All Uniques": earned, never logged ------------------------- */
+
+    // The sheet works these out with a formula, and a formula fills in a cell
+    // rather than appending a row to the drop log — so the completion exists in
+    // the sheet's totals and in no row the site could read. It is derived here
+    // instead, from the catalog's own list of what the category contains.
+    //
+    // Derived after the drop loop rather than inside it because it depends on
+    // everything the team ended up with, not on the order things arrived in.
+    for (const aggregate of catalog.aggregates) {
+      // A team that logged the row by hand already has the points. Deriving it
+      // as well would pay twice.
+      if (claimed.has(aggregate.entry.key)) continue;
+      if (!aggregate.requires.every((key) => claimed.has(key))) continue;
+
+      team.totalPoints += aggregate.entry.points;
+      team.awards.push({
+        id: `derived-${aggregate.entry.key}`,
+        category: aggregate.entry.category,
+        item: aggregate.entry.item,
+        points: aggregate.entry.points,
+        row: null,
+        derived: true,
+      });
+    }
   }
 
   teams.sort(

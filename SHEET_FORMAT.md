@@ -167,6 +167,21 @@ unique would be odd. A whole-team one is listed by name under **Team awards** on
 the team's card instead, which is the only place it can appear: with nobody
 named, no player's breakdown carries it.
 
+### `All Uniques` completes itself
+
+You do **not** log an `All Uniques` row. The site awards it the moment a team
+holds every other unique the catalog lists under that boss, and it appears under
+**Team awards** on the team's card marked "completed".
+
+Shards do not count toward it, and neither does a `Completed ...` set row, which
+is worked out the same way. If you do log the row by hand it is used as-is and
+nothing is derived on top, so it can never pay twice.
+
+This is derived rather than read because the sheet computes it with a **formula**
+— and a formula fills in a cell, it cannot append a row to this tab. The
+completion exists in the sheet's own totals and in no row the site could read,
+which is why nothing showed up before.
+
 **An unrecognised RSN is a different matter.** If `User` is filled in but does
 not match the roster, the row is flagged and **not** scored, rather than falling
 back to the `Team` column. A blank means "the whole team"; a typo means somebody
