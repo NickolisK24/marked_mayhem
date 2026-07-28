@@ -12,13 +12,18 @@
  * a mismatch is reported, never acted on.
  */
 
-import { AWARD_CATEGORIES } from "@/config/event";
+import { AWARD_CATEGORIES, ITEM_CAPS } from "@/config/event";
 import type { SheetRow, SheetTable } from "./csv";
 import { parseLimit, parseNumber } from "./numbers";
 import { catalogKey, normalize, squash, stripLimitSuffix, tidy } from "./text";
 import type { Catalog, CatalogEntry, Warning } from "./types";
 
 const awardCategorySet = new Set(AWARD_CATEGORIES.map(normalize));
+
+/** Normalized item name -> its per-team cap, from the event rules. */
+const cappedItems = new Map(
+  ITEM_CAPS.map(({ item, limit }) => [normalize(item), limit]),
+);
 
 /**
  * True for a category holding awards rather than boss drops.
@@ -109,9 +114,14 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
     if (rawItem === "") continue;
 
     // "Infernal Cape (Limit 5)" is the item "Infernal Cape", capped at 5. The
-    // suffix is how the catalog writes a cap; it is not part of the name and
+    // suffix is one way the catalog writes a cap; it is not part of the name and
     // the drop log does not carry it.
-    const { name: item, limit: cap } = stripLimitSuffix(rawItem);
+    const { name: item, limit: suffixCap } = stripLimitSuffix(rawItem);
+
+    // The suffix is cell text and may be edited away by anyone tidying the
+    // sheet, so the configured caps stand behind it. Whichever says so, the item
+    // is capped.
+    const cap = suffixCap ?? cappedItems.get(normalize(item)) ?? null;
 
     if (category === "") {
       warnings.push({

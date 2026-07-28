@@ -1276,3 +1276,93 @@ describe("scoring — set completions and all-uniques rows", () => {
     expect(result.warnings.map((w) => w.kind)).toContain("unknownItem");
   });
 });
+
+describe("scoring — a cap holds when the catalog name loses its suffix", () => {
+  // The regression this guards. The cap used to be read only from a "(Limit 5)"
+  // suffix on the catalog's item name. That is ordinary cell text: somebody
+  // tidying the sheet removed it, and every cape after the first quietly went
+  // back to half points, with nothing on the site to say so. The cap is an
+  // event rule, so it is configured, and the sheet can no longer switch it off.
+  const PLAIN = [
+    "Category,Item,Key,Points,Full pts qty limit",
+    "Zuk,Infernal Cape,ZukInfernal Cape,60,1",
+    "Fortis Colosseum,Dizana's quiver,Fortis ColosseumDizana's quiver,50,1",
+  ].join("\n");
+
+  const capes = (n: number) =>
+    dropsCsv(
+      Array.from(
+        { length: n },
+        (): [string, string, string, string] => [
+          "Lauren",
+          "Charzbtw",
+          "Zuk",
+          "Infernal Cape",
+        ],
+      ),
+    );
+
+  it("gives all five capes full points with no suffix in the catalog", () => {
+    const result = buildFixture({ bingo: PLAIN, drops: capes(5) });
+
+    expect(team(result, "Lauren").totalPoints).toBe(300);
+  });
+
+  it("scores nothing past the fifth", () => {
+    const result = buildFixture({ bingo: PLAIN, drops: capes(8) });
+
+    expect(team(result, "Lauren").totalPoints).toBe(300);
+  });
+
+  it("marks the over-cap ones in the player breakdown", () => {
+    const result = buildFixture({ bingo: PLAIN, drops: capes(7) });
+
+    const drops = player(result, "Charzbtw").drops;
+    expect(drops.map((d) => d.points)).toEqual([60, 60, 60, 60, 60, 0, 0]);
+    expect(drops.map((d) => d.overCap)).toEqual([
+      false, false, false, false, false, true, true,
+    ]);
+    expect(drops.every((d) => d.cap === 5)).toBe(true);
+  });
+
+  it("caps Dizana's quiver too, apostrophe and all", () => {
+    const result = buildFixture({
+      bingo: PLAIN,
+      drops: dropsCsv(
+        Array.from(
+          { length: 7 },
+          (): [string, string, string, string] => [
+            "Lauren",
+            "Charzbtw",
+            "Fortis Colosseum",
+            "Dizana's quiver",
+          ],
+        ),
+      ),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(250);
+  });
+
+  it("still honours a suffix when the catalog does carry one", () => {
+    const withSuffix = [
+      "Category,Item,Key,Points,Full pts qty limit",
+      "Zuk,Infernal Cape (Limit 5),ZukInfernal Cape (Limit 5),60,1",
+    ].join("\n");
+
+    const result = buildFixture({ bingo: withSuffix, drops: capes(7) });
+
+    expect(team(result, "Lauren").totalPoints).toBe(300);
+  });
+
+  it("leaves an uncapped item on the usual full-then-half rule", () => {
+    const result = buildFixture({
+      drops: dropsCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"],
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"],
+      ]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(90);
+  });
+});

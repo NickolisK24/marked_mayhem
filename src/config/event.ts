@@ -46,6 +46,27 @@ export const FALLBACK_TEAM_COLOR = {
 };
 
 /**
+ * Per-team caps on how many of an item score at all.
+ *
+ * All N score **full** points — there is no half tier for a capped item — and
+ * past N they score nothing.
+ *
+ * These live here rather than being read out of the catalog because they are an
+ * event rule, not a property of the sheet. The catalog can also write a cap into
+ * an item's name as "(Limit 5)", and that still works, but it cannot be relied
+ * on: it is ordinary cell text that anybody tidying the sheet may remove without
+ * realising it is load-bearing, and when that happens the cap silently reverts
+ * to full-then-half. A cap listed here holds whatever the sheet says.
+ *
+ * Matched on the item name alone, after normalization, so it applies wherever
+ * the item appears and does not care how the boss is spelled.
+ */
+export const ITEM_CAPS: ReadonlyArray<{ item: string; limit: number }> = [
+  { item: "Infernal Cape", limit: 5 },
+  { item: "Dizana's quiver", limit: 5 },
+];
+
+/**
  * Catalog categories holding awards rather than boss drops.
  *
  * This is a presentation distinction, not a scoring one — an award scores
