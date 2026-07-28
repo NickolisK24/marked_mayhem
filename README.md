@@ -27,7 +27,7 @@ npm install
 Create `.env.local` in the project root:
 
 ```
-SHEET_ID=1rCXkWU1UkD8c43_X7bJf77go8yjUuitK9pYc-ASJLBE
+SHEET_ID=1SXqDPsj51-ygoVtjbRPnxMPV6CEoN7JwDvPCBFC4wLM
 ```
 
 Then:
@@ -151,15 +151,15 @@ For each drop, in chronological order within a team:
    would hide it while still moving the total.
 
 `All Uniques` and `Completed ...` entries are never logged, so they are
-**derived**. All Uniques goes to a team holding every other non-shard,
+**derived**. The sheet computes them with a formula, and a formula fills in a
+cell rather than appending a row to the drop log, so they existed only in the
+sheet's own totals. All Uniques goes to a team holding every other non-shard,
 non-aggregate entry its category lists; a set completion goes to a team holding
 every piece under that boss whose name mentions the set, so `Completed Torva`
-wants the Torva Full Helm, Platebody and Platelegs. Both are read from the
-catalog rather than written into the site, so a set the sheet adds later needs
-no code. The card marks them "completed" with the boss named. The sheet computes it with a
-formula, and a formula fills in a cell rather than appending a row to the drop
-log, so the completion existed only in the sheet's own totals. A hand-logged row
-suppresses the derivation, so the two can never both pay.
+wants the Torva Full Helm, Platebody and Platelegs. Both requirements are read
+from the catalog rather than written into the site, so a set the sheet adds
+later needs no code. The card marks them "completed" with the boss named, and a
+hand-logged row suppresses the derivation so the two can never both pay.
 
 Awards score into the team total like anything else, but are excluded from its
 uniques and drop counts — they are not items, and "Most Team Uniques" counting
