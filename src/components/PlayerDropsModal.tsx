@@ -74,7 +74,8 @@ export function PlayerDropsModal({
             </h2>
             <p className="truncate text-xs text-parchment-faint">
               {player.team}
-              {player.rsns.length > 1 && ` · also ${player.rsns.slice(1).join(", ")}`}
+              {player.rsns.length > 1 &&
+                ` · ${player.rsns.slice(1).join(", ")}`}
             </p>
           </div>
 

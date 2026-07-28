@@ -2,12 +2,18 @@
  * Alias resolution.
  *
  * Rule 2 lets a player sign up on two accounts, so a roster cell may hold more
- * than one RSN separated by `/` or `,`:
+ * than one RSN. The roster uses several conventions for this, all of which have
+ * turned up in the live sheet:
  *
- *   "Charzbtw/scuffdcharz"      -> one player, two RSNs
- *   "Haxoonie / Maxoonie"       -> one player, two RSNs (spaces around the slash)
- *   "canofeesh, can o fish"     -> one player, two RSNs
- *   "MarylandRat"               -> one player, one RSN
+ *   Charzbtw/scuffdcharz         -> two RSNs, separated by a slash
+ *   Haxoonie / Maxoonie          -> two RSNs, spaces around the slash
+ *   canofeesh, can o fish        -> two RSNs, separated by a comma
+ *   Weh & Cnr                    -> two RSNs, separated by an ampersand
+ *   "NiceExample" "Dragon Sword" -> two RSNs, each quoted
+ *   MarylandRat                  -> one RSN
+ *
+ * Quotes are a grouping device, not part of the name: they are there so a name
+ * containing a space survives as one RSN. They are stripped, never displayed.
  *
  * A drop is logged under whichever account got it, so every RSN must resolve
  * back to the same canonical player.
@@ -21,12 +27,59 @@
 import { normalize, squash, tidy } from "./text";
 import type { Player, Warning } from "./types";
 
-/** Split a roster cell into its individual RSNs. */
+/**
+ * Quote marks used to group a multi-word RSN. Straight and curly are treated
+ * interchangeably, since a sheet will silently turn one into the other and the
+ * pair can end up mismatched.
+ */
+const QUOTES = new Set(['"', "“", "”", "‟", "«", "»"]);
+
+/** Characters that separate one RSN from the next. */
+const SEPARATORS = new Set(["/", ",", "&"]);
+
+/**
+ * Split a roster cell into its individual RSNs.
+ *
+ * A single left-to-right pass, so the order in the cell is preserved — the
+ * first RSN is the one the site displays.
+ */
 export function splitRsns(cell: string): string[] {
-  return cell
-    .split(/[/,]/)
-    .map((part) => tidy(part))
-    .filter((part) => part !== "");
+  const rsns: string[] = [];
+  let current = "";
+
+  const flush = () => {
+    const value = tidy(current);
+    if (value !== "") rsns.push(value);
+    current = "";
+  };
+
+  for (let i = 0; i < cell.length; i += 1) {
+    const char = cell[i]!;
+
+    if (QUOTES.has(char)) {
+      // Everything up to the closing quote is one RSN, so a separator or a
+      // space inside the quotes does not split it.
+      flush();
+      let j = i + 1;
+      while (j < cell.length && !QUOTES.has(cell[j]!)) {
+        current += cell[j];
+        j += 1;
+      }
+      flush();
+      i = j; // skip the closing quote
+      continue;
+    }
+
+    if (SEPARATORS.has(char)) {
+      flush();
+      continue;
+    }
+
+    current += char;
+  }
+
+  flush();
+  return rsns;
 }
 
 export interface AliasIndex {

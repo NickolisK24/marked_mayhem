@@ -52,7 +52,7 @@ export function Rosters({ rosters }: { rosters: RosterTeam[] }) {
                         this player when a drop is logged. */}
                     {player.rsns.length > 1 && (
                       <p className="truncate text-xs text-parchment-faint">
-                        also {player.rsns.slice(1).join(", ")}
+                        {player.rsns.slice(1).join(", ")}
                       </p>
                     )}
                   </div>

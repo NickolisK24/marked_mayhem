@@ -237,11 +237,18 @@ The **long** layout also works, and is detected automatically:
 ### Two accounts per player
 
 Rule 2 allows a player to sign up on two accounts. Put both RSNs in the same
-cell, separated by `/` or `,`:
+cell. Any of these separators work:
 
-- `Charzbtw/scuffdcharz`
-- `Haxoonie / Maxoonie`
-- `canofeesh, can o fish`
+- `Charzbtw/scuffdcharz` — a slash
+- `Haxoonie / Maxoonie` — a slash with spaces
+- `canofeesh, can o fish` — a comma
+- `Weh & Cnr` — an ampersand
+- `"NiceExample" "Dragon Sword"` — each name in quotes
+
+Use **quotes** when a name contains a space, so it is not mistaken for two
+names. The quotes group the name; they are not part of it and are never shown
+on the site. A name with a space and no quotes, like `Ingot Chewer`, is read as
+one name — the quotes only matter when there are two accounts in the cell.
 
 A drop logged under **either** name is credited to that one player, and their
 points are combined. The first name listed is what the site displays.
