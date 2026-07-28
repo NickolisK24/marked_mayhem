@@ -40,6 +40,51 @@ describe("splitRsns", () => {
     expect(splitRsns("Zezima/")).toEqual(["Zezima"]);
     expect(splitRsns("  ")).toEqual([]);
   });
+
+  it("splits on an ampersand", () => {
+    expect(splitRsns("Weh & Cnr")).toEqual(["Weh", "Cnr"]);
+    expect(splitRsns("Weh&Cnr")).toEqual(["Weh", "Cnr"]);
+  });
+
+  it("treats each quoted group as one RSN and strips the quotes", () => {
+    // Quotes are a grouping device so a name with a space survives whole.
+    expect(splitRsns("\u201CNiceExample\u201D \u201CDragon Sword\u201D")).toEqual([
+      "NiceExample",
+      "Dragon Sword",
+    ]);
+    expect(splitRsns('"NiceExample" "Dragon Sword"')).toEqual([
+      "NiceExample",
+      "Dragon Sword",
+    ]);
+  });
+
+  it("handles quotes mixed with the usual separators", () => {
+    expect(splitRsns('"Dragon Sword" / Plainname')).toEqual([
+      "Dragon Sword",
+      "Plainname",
+    ]);
+    expect(splitRsns('Plainname, "Two Words"')).toEqual([
+      "Plainname",
+      "Two Words",
+    ]);
+  });
+
+  it("keeps a separator that sits inside quotes", () => {
+    expect(splitRsns('"A & B"')).toEqual(["A & B"]);
+  });
+
+  it("copes with a mismatched or unclosed quote", () => {
+    expect(splitRsns('\u201CNiceExample" \u201CDragon Sword\u201D')).toEqual([
+      "NiceExample",
+      "Dragon Sword",
+    ]);
+    expect(splitRsns('"Unclosed')).toEqual(["Unclosed"]);
+  });
+
+  it("leaves an unquoted multi-word name alone", () => {
+    expect(splitRsns("Ingot Chewer")).toEqual(["Ingot Chewer"]);
+    expect(splitRsns("Skky Btw")).toEqual(["Skky Btw"]);
+  });
 });
 
 describe("alias resolution", () => {
@@ -243,5 +288,49 @@ describe("resolving the whole roster cell", () => {
   it("does not warn about the cell colliding with its own RSNs", () => {
     const { warnings } = roster();
     expect(warnings.filter((w) => w.kind === "rosterAmbiguousAlias")).toEqual([]);
+  });
+});
+
+describe("quoted and ampersand roster cells resolve", () => {
+  const csv = [
+    "Team harmony,EHB",
+    "harmon y,1000+",
+    "“NiceExample” “Dragon Sword”,500-999",
+    "Weh & Cnr,100-499",
+  ].join("\n");
+
+  it("displays the first name without its quotes", () => {
+    const { roster: r } = roster(csv);
+    const names = r.teams[0]!.players.map((p) => p.displayName);
+    expect(names).toEqual(["harmon y", "NiceExample", "Weh"]);
+  });
+
+  it("never leaks a quote into a displayed name", () => {
+    const { roster: r } = roster(csv);
+    for (const player of r.players) {
+      for (const rsn of [player.displayName, ...player.rsns]) {
+        expect(rsn).not.toMatch(/["“”]/);
+      }
+    }
+  });
+
+  it("resolves either half of a quoted pair", () => {
+    const { roster: r } = roster(csv);
+    expect(r.resolve("NiceExample")?.displayName).toBe("NiceExample");
+    expect(r.resolve("Dragon Sword")?.displayName).toBe("NiceExample");
+  });
+
+  it("resolves either half of an ampersand pair", () => {
+    const { roster: r } = roster(csv);
+    expect(r.resolve("Weh")?.displayName).toBe("Weh");
+    expect(r.resolve("Cnr")?.displayName).toBe("Weh");
+  });
+
+  it("resolves the whole cell verbatim, quotes and all", () => {
+    const { roster: r } = roster(csv);
+    expect(
+      r.resolve("“NiceExample” “Dragon Sword”")?.displayName,
+    ).toBe("NiceExample");
+    expect(r.resolve("Weh & Cnr")?.displayName).toBe("Weh");
   });
 });
