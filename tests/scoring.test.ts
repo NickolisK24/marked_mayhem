@@ -887,3 +887,95 @@ describe("scoring — the Infernal cape per-team cap", () => {
     expect(player(result, "Charzbtw").drops[0]!.item).toBe("Infernal Cape");
   });
 });
+
+describe("scoring — team totals do not depend on the order of the drop log", () => {
+  // DROPS has no Timestamp column and is not getting one: event managers accept
+  // submissions by hand and will not also record when each happened. So drops
+  // are ordered by row position, which is only chronological while rows are
+  // appended rather than inserted.
+  //
+  // These tests pin down how much that actually costs. Exactly N of an item
+  // score full points no matter which N they are, so a team's total is the same
+  // under every ordering — an inserted row cannot move the leaderboard. What it
+  // can move is which *player* is credited with the full points.
+  const rows: Array<[string, string, string, string]> = [
+    // Uncapped, limit 1: one of these is full, the other two are half.
+    ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"],
+    ["Lauren", "canofeesh", "Callisto", "Dragon 2h sword"],
+    ["Lauren", "Lauren", "Callisto", "Dragon 2h sword"],
+    // Uncapped, limit 3: three full, one half.
+    ["Lauren", "Charzbtw", "Callisto", "Any Shard"],
+    ["Lauren", "canofeesh", "Callisto", "Any Shard"],
+    ["Lauren", "Lauren", "Callisto", "Any Shard"],
+    ["Lauren", "canofeesh", "Callisto", "Any Shard"],
+    // Capped at 5: all five full, the sixth nothing.
+    ...Array.from(
+      { length: 6 },
+      (_, i): [string, string, string, string] => [
+        "Lauren",
+        i % 2 === 0 ? "Charzbtw" : "canofeesh",
+        "Zuk",
+        "Infernal Cape",
+      ],
+    ),
+  ];
+
+  /** Every permutation of `items`, generated deterministically. */
+  function permutations<T>(items: T[]): T[][] {
+    if (items.length <= 1) return [items];
+    const out: T[][] = [];
+    for (let i = 0; i < items.length; i += 1) {
+      const rest = [...items.slice(0, i), ...items.slice(i + 1)];
+      for (const tail of permutations(rest)) out.push([items[i]!, ...tail]);
+    }
+    return out;
+  }
+
+  const baseline = team(buildFixture({ drops: dropsCsv(rows) }), "Lauren");
+
+  it("scores the fixture as expected in its original order", () => {
+    // 60 + 30 + 30, then 5 + 5 + 5 + 2.5, then 60 x 5 + 0.
+    expect(baseline.dropPoints).toBe(437.5);
+    expect(baseline.uniques).toBe(3);
+    expect(baseline.dropCount).toBe(13);
+  });
+
+  it("gives the same team total for every ordering of the same drops", () => {
+    // 13 rows is far too many to permute exhaustively, so permute a
+    // representative subset in full: one of each item, plus a fourth row that
+    // makes one of them a duplicate.
+    const subset = rows.slice(0, 4);
+    const totals = new Set(
+      permutations(subset).map(
+        (order) => team(buildFixture({ drops: dropsCsv(order) }), "Lauren").dropPoints,
+      ),
+    );
+    expect([...totals]).toHaveLength(1);
+  });
+
+  it("gives the same team total when rows are reversed or rotated", () => {
+    const orderings = [
+      [...rows].reverse(),
+      [...rows.slice(6), ...rows.slice(0, 6)],
+      [...rows.slice(1), rows[0]!],
+    ];
+    for (const order of orderings) {
+      const scored = team(buildFixture({ drops: dropsCsv(order) }), "Lauren");
+      expect(scored.dropPoints).toBe(baseline.dropPoints);
+      expect(scored.uniques).toBe(baseline.uniques);
+      expect(scored.dropCount).toBe(baseline.dropCount);
+    }
+  });
+
+  it("can move full points between players on the same team", () => {
+    // The cost of row order, stated precisely: the same 13 drops, and one
+    // player's personal total changes depending on who was written down first.
+    const first = player(buildFixture({ drops: dropsCsv(rows) }), "Charzbtw");
+    const second = player(
+      buildFixture({ drops: dropsCsv([...rows].reverse()) }),
+      "Charzbtw",
+    );
+    expect(first.points).not.toBe(second.points);
+    expect(first.dropCount).toBe(second.dropCount);
+  });
+});

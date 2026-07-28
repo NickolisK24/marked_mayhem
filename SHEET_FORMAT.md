@@ -140,7 +140,7 @@ Rows are appended during the event. Only these columns are read:
 | `Drop` | yes | Must match an `Item` in `BINGO`, **for that boss**. |
 | `Price` | no | GP value of the item, column **H**. See below. |
 | `Bonus` | no | Manually-awarded points. See below. |
-| `Timestamp` | no | Optional. See below. |
+| `Timestamp` | no | Not used, and not needed. See below. |
 
 ### Bonus points
 
@@ -218,17 +218,19 @@ produces a warning instead, which takes about thirty seconds to fix.
 
 ### The optional `Timestamp` column
 
-Add a column named `Timestamp` and the site will:
+There is no `Timestamp` column and none is needed. Drops are ordered by their
+row position instead, which is what you want as long as rows are **appended to
+the bottom** rather than inserted in the middle.
 
-- order drops by it when working out which are the first N of an item, and
-- show "14m ago" style times in the live drop feed.
+Even if a row does get inserted, **no team's total changes.** Exactly N of an
+item score full points regardless of which N they are, so the leaderboard is the
+same under any ordering. What can change is which *player* is credited with the
+full points and which gets the half — so an inserted row can shuffle the player
+leaderboard slightly, but never the team standings the event is decided on.
 
-Without it, drops are ordered by their row position instead. That is correct as
-long as rows are only ever **appended** to the bottom. If someone inserts a row
-in the middle, the ordering — and therefore which drop got full points — will be
-wrong. **Adding a `Timestamp` column is recommended.**
-
-A `=NOW()` on entry, a Google Form, or a plain typed date all work.
+If a `Timestamp` column is ever added, the site picks it up on its own and
+orders by it; nothing needs changing. A `=NOW()` on entry, a Google Form, or a
+plain typed date all work.
 
 ---
 
