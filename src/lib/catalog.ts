@@ -12,7 +12,7 @@
  * a mismatch is reported, never acted on.
  */
 
-import { BONUS_CATEGORIES } from "@/config/event";
+import { TEAM_AWARD_CATEGORIES } from "@/config/event";
 import type { SheetRow, SheetTable } from "./csv";
 import { parseLimit, parseNumber } from "./numbers";
 import { catalogKey, normalize, squash, stripLimitSuffix, tidy } from "./text";
@@ -37,11 +37,16 @@ export const BINGO_ALL_COLUMNS = [
   "Full pts qty limit",
 ] as const;
 
-const bonusCategorySet = new Set(BONUS_CATEGORIES.map(normalize));
+const teamAwardCategorySet = new Set(TEAM_AWARD_CATEGORIES.map(normalize));
 
-/** True for the manually-awarded categories that never appear in the drop log. */
-export function isBonusCategory(category: string): boolean {
-  return bonusCategorySet.has(normalize(category));
+/**
+ * True for a category won by a team rather than by a person.
+ *
+ * These are scored exactly like any other catalog entry; the flag only exempts
+ * them from needing a `User` on the drop log row.
+ */
+export function isTeamAwardCategory(category: string): boolean {
+  return teamAwardCategorySet.has(normalize(category));
 }
 
 export interface CatalogResult {
@@ -78,8 +83,6 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
   const byKey = new Map<string, CatalogEntry>();
   const entries: CatalogEntry[] = [];
   const byCategory = new Map<string, CatalogEntry[]>();
-  const bonusEntries: CatalogEntry[] = [];
-  const bonusByKey = new Map<string, CatalogEntry>();
 
   // Named columns when the tab has a header, column positions when it does not.
   const cell = (row: SheetRow, column: string, at: number | null): string => {
@@ -136,20 +139,11 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
       key: catalogKey(category, item),
       category,
       item,
-      // Points is required to score. Bonus-category rows are reference-only, so
-      // a missing value there is harmless and defaults to 0.
       points: points ?? 0,
       fullPointsLimit,
       scoringCap: cap,
       row: row.row,
     };
-
-    if (isBonusCategory(category)) {
-      bonusEntries.push(entry);
-      // First listing wins, matching how a duplicate scoreable item is handled.
-      if (!bonusByKey.has(entry.key)) bonusByKey.set(entry.key, entry);
-      continue;
-    }
 
     if (points === null) {
       warnings.push({
@@ -198,7 +192,7 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
   }
 
   return {
-    catalog: { byKey, entries, byCategory, bonusEntries, bonusByKey },
+    catalog: { byKey, entries, byCategory },
     warnings,
   };
 }

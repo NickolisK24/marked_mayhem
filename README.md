@@ -142,11 +142,11 @@ For each drop, in chronological order within a team:
 4. Anything in the row's `Bonus` column is added to that team's bonus points.
    That column is typed in by event managers, so it is read as given rather
    than recomputed.
-5. A row in a bonus category (`Misc.`, `Team Challenges`) is a team award rather
-   than a drop. It carries no `User` — nobody personally won it — so it is
-   exempt from the rostered-player requirement, and it is priced from the
-   `Bonus` cell when there is one and from the catalog when there is not.
-   Awards land in the team's bonus total and never in a player's.
+5. `Misc.` and `Team Challenges` are ordinary catalog categories, scored from
+   their catalog points like any boss drop. Because a team wins them rather
+   than a person, their rows carry no `User` and are exempt from the
+   rostered-player requirement; with nobody named, the team scores and no
+   player does. They are unrelated to the `Bonus` column.
 
 Team totals carry drop points and bonus points separately, and the leaderboard
 shows the split. Player totals cover drops only — a bonus belongs to a team, not
@@ -234,7 +234,7 @@ npm run dev
 ### Code layout
 
 ```
-src/config/event.ts    event name, end date, team colours, bonus types, tab names
+src/config/event.ts    event name, event window, team colours, team-award categories, tab names
 src/lib/               parsing and scoring — pure, no React, no I/O except sheet.ts
   csv.ts               CSV parsing and header mapping
   numbers.ts           numeric and timestamp parsing

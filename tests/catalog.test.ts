@@ -32,7 +32,11 @@ describe("sectioned catalog layout", () => {
   it("inherits the boss from the section heading above each item", () => {
     const { catalog, warnings } = build(SECTIONED);
 
-    expect([...catalog.byCategory.keys()]).toEqual(["Armadyl", "Callisto"]);
+    expect([...catalog.byCategory.keys()]).toEqual([
+      "Armadyl",
+      "Callisto",
+      "Misc.",
+    ]);
     expect(catalog.byCategory.get("Armadyl")).toHaveLength(6);
     expect(catalog.byCategory.get("Callisto")).toHaveLength(2);
     expect(warnings).toEqual([]);
@@ -52,18 +56,20 @@ describe("sectioned catalog layout", () => {
     // "Any Shard" appears under both bosses and must stay two entries.
     expect(catalog.byKey.get("armadyl|any shard")?.fullPointsLimit).toBe(3);
     expect(catalog.byKey.get("callisto|any shard")).toBeDefined();
-    expect(catalog.byKey.size).toBe(8);
+    // 8 boss items plus the three under Misc., which score the same way.
+    expect(catalog.byKey.size).toBe(11);
   });
 
-  it("routes a Misc. section to bonuses, not to bosses", () => {
+  it("reads a Misc. section as a scoreable category like any other", () => {
     const { catalog } = build(SECTIONED);
 
-    expect([...catalog.byCategory.keys()]).not.toContain("Misc.");
-    expect(catalog.bonusEntries.map((e) => e.item)).toEqual([
-      "Boss Pets",
-      "Jars",
-      "Bounty 1st",
-    ]);
+    // Misc. is picked from the same dropdown as a boss and scores from the same
+    // catalog points, so it belongs in the join map rather than off to one side.
+    expect([...catalog.byCategory.keys()]).toContain("Misc.");
+    expect(
+      catalog.byCategory.get("Misc.")?.map((e) => e.item),
+    ).toEqual(["Boss Pets", "Jars", "Bounty 1st"]);
+    expect(catalog.byKey.get("misc.|boss pets")).toBeDefined();
   });
 
   it("reads a heading placed in the Item column instead of Category", () => {
@@ -184,6 +190,8 @@ describe("headerless catalog read by column position", () => {
     const { catalog } = build(HEADERLESS);
 
     expect([...catalog.byCategory.keys()]).toEqual([
+      "Misc.",
+      "Team Challenges",
       "Armadyl",
       "Bandos (General Graardor)",
     ]);
@@ -201,12 +209,16 @@ describe("headerless catalog read by column position", () => {
     expect(warnings).toEqual([]);
   });
 
-  it("routes Misc. and Team Challenges to bonuses with their points", () => {
+  it("reads Misc. and Team Challenges with their points, as scoreable", () => {
     const { catalog } = build(HEADERLESS);
 
-    expect([...catalog.byCategory.keys()]).not.toContain("Misc.");
+    expect([...catalog.byCategory.keys()]).toContain("Misc.");
+    expect([...catalog.byCategory.keys()]).toContain("Team Challenges");
     expect(
-      catalog.bonusEntries.map((e) => `${e.item}=${e.points}`),
+      [
+        ...(catalog.byCategory.get("Misc.") ?? []),
+        ...(catalog.byCategory.get("Team Challenges") ?? []),
+      ].map((e) => `${e.item}=${e.points}`),
     ).toEqual([
       "Boss Pets=250",
       "Jars=100",

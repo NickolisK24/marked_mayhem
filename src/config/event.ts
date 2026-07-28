@@ -46,11 +46,18 @@ export const FALLBACK_TEAM_COLOR = {
 };
 
 /**
- * BINGO categories that are NOT bosses. These hold manually-awarded bonuses and
- * are excluded from the drop-join path entirely — a DROPS row referencing one is
- * a mistake and gets surfaced as a warning.
+ * BINGO categories that are won by a team rather than by a person.
+ *
+ * They are ordinary scoreable categories in every other respect — they sit in
+ * the catalog with their own points and are picked from the same dropdown as a
+ * boss. The single difference is that the drop log leaves `User` empty for
+ * them, because nobody personally received the item, so they are exempt from
+ * the rule that a scored row needs a rostered player.
+ *
+ * These have nothing to do with the `Bonus` column, which is a separate
+ * mechanism for points typed in by hand.
  */
-export const BONUS_CATEGORIES = ["Misc.", "Misc", "Team Challenges"];
+export const TEAM_AWARD_CATEGORIES = ["Misc.", "Misc", "Team Challenges"];
 
 /** Seconds between client polls, and the server-side cache window. */
 export const REVALIDATE_SECONDS = 30;

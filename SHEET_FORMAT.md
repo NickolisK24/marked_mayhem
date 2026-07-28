@@ -168,31 +168,36 @@ ignored, not warned about.
 Note that an **item** drop still needs a `User` that is on the roster — a team
 name alone is not enough for one. That is deliberate: crediting an item on the
 strength of a hand-typed team cell would move points without anyone noticing.
-`Misc.` and `Team Challenges` are the exception, below.
+`Misc.` and `Team Challenges` are the exception, below, because a team rather
+than a person wins those.
 
 ### `Misc.` and `Team Challenges` awards
 
-These two categories are won by a **team**, not by a person, so their rows leave
-`User` (column C) empty. Log them like any other row, with the category in
-`Boss` and the award in `Drop`:
+These two categories are picked from the same dropdown as a boss and score from
+their `BINGO` points exactly like a boss drop. **They have nothing to do with
+the `Bonus` column.**
 
-| Team | User | Boss | Drop | Bonus |
-| --- | --- | --- | --- | --- |
-| Faedaa | | Misc. | Most Team Uniques | |
-| harmony | | Team Challenges | Team 1st | |
-| Faedaa | | Team Challenges | Team Participation | 25 |
+The only difference is that a **team** wins them rather than a person, so their
+rows leave `User` empty:
 
-The points come from `BINGO`, exactly as they do for a boss drop — leave `Bonus`
-empty and the award is priced from the catalog automatically. Fill `Bonus` in
-and **that number wins**, which is how you award a partial or one-off amount
-(the third row above pays 25, not the catalog's 50).
+| Team | User | Boss | Drop |
+| --- | --- | --- | --- |
+| Faedaa | | Misc. | Most Team Uniques |
+| harmony | | Team Challenges | Team 1st |
+| Oops | | Misc. | Jars |
 
-An award that is in neither the catalog nor the `Bonus` column is flagged rather
-than guessed at.
+The site scores these to the team named in `Team`. They count toward that team's
+drop points, drop count and uniques, like any other catalog item, and the usual
+quantity rules apply — a repeat of the same award scores half.
 
-These land in the team's **bonus** total, so they show separately from drop
-points on the leaderboard, and they never touch a player's individual total or
-drop breakdown even if someone is named on the row.
+Naming somebody in `User` is allowed and credits them on the player leaderboard;
+leaving it blank simply means nobody is credited individually. An award that is
+not in the catalog is flagged rather than guessed at.
+
+> The sheet's own points for these appear in `Points Earned` (column N). Like
+> every other computed column, that is **not read** — the site recomputes from
+> `BINGO`, so the two should agree, and if they ever disagree the catalog is the
+> one that decides.
 
 ### The `Price` column
 
