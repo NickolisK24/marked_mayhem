@@ -49,7 +49,22 @@ export function buildAliasIndex(players: Player[], tab: string): AliasIndex {
   const warnings: Warning[] = [];
 
   for (const player of players) {
-    for (const rsn of player.rsns) {
+    // The roster cell as a whole counts as an alias, not just the RSNs inside
+    // it. The drop log's User column is typically a dropdown sourced from the
+    // roster, so a two-account player arrives as the literal cell text —
+    // "Charzbtw/scuffdcharz" — which is nobody's RSN.
+    //
+    // Deduped, because a single-name player's cell *is* their only RSN and
+    // registering it twice would report them as clashing with themselves.
+    const seen = new Set<string>();
+    const aliases = [...player.rsns, player.rosterCell].filter((alias) => {
+      const key = normalize(alias);
+      if (key === "" || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    for (const rsn of aliases) {
       const key = normalize(rsn);
       if (key === "") continue;
 

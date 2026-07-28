@@ -56,11 +56,13 @@ export function parseDrops(table: SheetTable, tab: string): DropsResult {
     const boss = tidy(row.get("Boss"));
     const drop = tidy(row.get("Drop"));
     const bonus = parseNumber(row.get(DROPS_BONUS_COLUMN));
-    const price = parseNumber(
-      row.has(DROPS_PRICE_COLUMN)
-        ? row.get(DROPS_PRICE_COLUMN)
-        : (row.cells[DROPS_PRICE_FALLBACK_INDEX] ?? ""),
-    );
+    // Try the named column first, then column H. A fallback rather than an
+    // either/or, so a row whose named cell exports blank — which Google's CSV
+    // endpoint does when a cell's type does not match the rest of its column —
+    // can still be read positionally.
+    const price =
+      parseNumber(row.get(DROPS_PRICE_COLUMN)) ??
+      parseNumber(row.cells[DROPS_PRICE_FALLBACK_INDEX] ?? "");
 
     // The drop log is pre-padded with empty rows whose formula columns still
     // evaluate to something, so blankness is judged on these fields only —

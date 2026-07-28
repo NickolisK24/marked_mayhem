@@ -205,9 +205,43 @@ function mkPlayer(id: string, rsn: string, team: string): Player {
     id,
     displayName: rsn,
     rsns: [rsn],
+    rosterCell: rsn,
     team,
     ehb: "",
     isCaptain: false,
     row: 2,
   };
 }
+
+describe("resolving the whole roster cell", () => {
+  it("resolves a slash-joined cell used verbatim in the drop log", () => {
+    // The drop log's User column is a dropdown sourced from the roster, so it
+    // hands back the entire cell rather than one of the RSNs in it.
+    const { roster: r } = roster();
+    const player = r.resolve("Charzbtw/scuffdcharz");
+    expect(player?.displayName).toBe("Charzbtw");
+    expect(player?.id).toBe(r.resolve("Charzbtw")?.id);
+  });
+
+  it("resolves a comma-joined cell used verbatim", () => {
+    const { roster: r } = roster();
+    expect(r.resolve("canofeesh, can o fish")?.displayName).toBe("canofeesh");
+  });
+
+  it("resolves a spaced-slash cell verbatim, and without its spaces", () => {
+    const { roster: r } = roster();
+    expect(r.resolve("Haxoonie / Maxoonie")?.displayName).toBe("Haxoonie");
+    expect(r.resolve("Haxoonie/Maxoonie")?.displayName).toBe("Haxoonie");
+  });
+
+  it("still resolves each RSN on its own", () => {
+    const { roster: r } = roster();
+    expect(r.resolve("scuffdcharz")?.displayName).toBe("Charzbtw");
+    expect(r.resolve("Maxoonie")?.displayName).toBe("Haxoonie");
+  });
+
+  it("does not warn about the cell colliding with its own RSNs", () => {
+    const { warnings } = roster();
+    expect(warnings.filter((w) => w.kind === "rosterAmbiguousAlias")).toEqual([]);
+  });
+});
