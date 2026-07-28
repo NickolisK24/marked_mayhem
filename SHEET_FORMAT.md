@@ -25,8 +25,10 @@ checking the warnings panel now and then.
   treated as missing, never as zero.
 - **Number formatting is handled.** `40,331,957`, `$0`, `1.4b` and `315m` all
   read correctly.
-- **The sheet must be published to the web.** File → Share → Publish to web →
-  Entire document → CSV. Link-sharing alone is not enough.
+- **The sheet must be viewable by anyone with the link.** Share → General
+  access → "Anyone with the link" → Viewer. *Publish to web is a separate
+  setting and is not a substitute* — with publishing on but link sharing off,
+  the site cannot read any tab.
 
 ---
 

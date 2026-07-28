@@ -90,10 +90,9 @@ export interface SheetTable {
 }
 
 /**
- * gviz answers a request for a non-existent tab (or an unpublished sheet) with
- * an HTML page or a JS callback rather than an HTTP error. Detect that here so
- * the caller can report "tab not found" instead of parsing a login page into
- * nonsense rows.
+ * gviz answers a request for a non-existent tab with an HTML page or a JS
+ * callback rather than an HTTP error. Detect that here so the caller can report
+ * "tab not found" instead of parsing a login page into nonsense rows.
  */
 export function looksLikeCsv(text: string): boolean {
   const head = text.slice(0, 400).trimStart().toLowerCase();

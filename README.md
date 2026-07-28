@@ -57,24 +57,37 @@ fixed by changing a Vercel setting and redeploying, rather than editing code.
 
 ---
 
-## Publishing the sheet
+## Making the sheet readable
 
-The site reads the sheet as CSV over the public gviz endpoint. Link-sharing is
-**not** sufficient — the sheet must be published.
+The site reads the sheet as CSV over the `gviz` endpoint, which serves any
+sheet that is **viewable without signing in**.
 
-1. Open the sheet.
-2. **File → Share → Publish to web**.
-3. Under *Link*, choose **Entire Document** and **Comma-separated values (.csv)**.
-4. Click **Publish** and confirm.
+**Share → General access → "Anyone with the link" → Viewer.**
 
-To check a single tab from PowerShell (note `curl.exe`, not the `curl` alias):
+That is the setting that matters. **"Publish to web" is a different switch and
+does not replace it** — publishing enables the `/pub?output=csv` URLs, while
+`/gviz/tq` still answers `HTTP 401` until link sharing is on. If every tab is
+failing with 401, this is why. Publishing as well does no harm and is not
+required.
+
+### Checking it
+
+```powershell
+npm run check-sheet
+```
+
+Reads `.env.local`, fetches every tab, and reports the status, the header row
+and a row count for each — plus what to do about anything that failed. Run it
+before wondering why the site is empty.
+
+To check one tab by hand (note `curl.exe`, not PowerShell's `curl` alias):
 
 ```powershell
 curl.exe -sS "https://docs.google.com/spreadsheets/d/$env:SHEET_ID/gviz/tq?tqx=out:csv&sheet=BINGO"
 ```
 
-CSV means it worked. HTML means the sheet is not published, or the tab name is
-wrong — the site reports both cases by name in its error banner.
+CSV means it worked. HTML means either the sheet needs link sharing or the tab
+name is wrong; the site distinguishes the two in its error banner.
 
 ### Before the event starts
 
@@ -138,7 +151,8 @@ The site is built on the assumption that the sheet will break mid-event.
 
 | What breaks | What happens |
 | --- | --- |
-| A tab is renamed, deleted, or unpublished | Error banner naming that tab and the problem; last good data stays on screen |
+| A tab is renamed or deleted | Error banner naming that tab and the problem; last good data stays on screen |
+| Sheet sharing is turned off | Error banner naming the exact sharing setting to restore |
 | A required column is removed | Error banner naming the tab and the missing columns |
 | A drop references an unknown item, boss, or RSN | That row is skipped and listed in the dismissible warnings panel |
 | A cell contains `#REF!`, `#N/A`, `$0`, or `40,331,957` | Parsed correctly; broken numbers become "missing", never a silent zero |

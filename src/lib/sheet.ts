@@ -31,6 +31,38 @@ export function tabUrl(sheetId: string, tab: string, base?: string): string {
   );
 }
 
+/**
+ * Turn an HTTP status into something a clan admin can act on.
+ *
+ * The important one is 401/403. "Publish to web" and link sharing are two
+ * separate switches in Google Sheets, and the gviz endpoint this app uses
+ * checks the *sharing* one: publishing makes /pub?output=csv work while
+ * /gviz/tq still answers 401. Saying "check the sheet is published" to someone
+ * who has just published it sends them round in circles.
+ */
+export function describeHttpStatus(status: number, tab: string): string {
+  if (status === 401 || status === 403) {
+    return (
+      "The sheet is not readable without signing in. Publishing to the web is " +
+      "not enough on its own — open Share → General access and set " +
+      '"Anyone with the link" to Viewer.'
+    );
+  }
+  if (status === 404) {
+    return `Not found (HTTP 404). Check the SHEET_ID, and that the tab is named exactly "${tab}".`;
+  }
+  if (status === 400) {
+    return `Google Sheets rejected the request (HTTP 400). This usually means there is no tab named exactly "${tab}".`;
+  }
+  if (status === 429) {
+    return "Google Sheets is rate limiting the site (HTTP 429). It should recover on its own.";
+  }
+  if (status >= 500) {
+    return `Google Sheets is having trouble (HTTP ${status}). This is on their end and usually clears up.`;
+  }
+  return `Google Sheets returned HTTP ${status}.`;
+}
+
 export async function fetchTab(
   sheetId: string,
   tab: string,
@@ -51,25 +83,18 @@ export async function fetchTab(
   }
 
   if (!response.ok) {
-    return {
-      ok: false,
-      tab,
-      problem:
-        response.status === 404
-          ? `Tab not found (HTTP 404). Check the tab is named exactly "${tab}".`
-          : `Google Sheets returned HTTP ${response.status}. Check the sheet is published to the web.`,
-    };
+    return { ok: false, tab, problem: describeHttpStatus(response.status, tab) };
   }
 
   const text = await response.text();
 
-  // gviz answers an unknown tab or an unpublished sheet with 200 and an HTML
-  // page or a JS callback, so the status code alone is not enough.
+  // gviz answers an unknown tab with 200 and an HTML page or a JS callback, so
+  // the status code alone is not enough.
   if (!looksLikeCsv(text)) {
     return {
       ok: false,
       tab,
-      problem: `Response was not CSV. The tab "${tab}" probably does not exist, or the sheet is not published to the web (File → Share → Publish to web).`,
+      problem: `Response was not CSV. The tab "${tab}" probably does not exist — check it is named exactly "${tab}", including capitalisation.`,
     };
   }
 
