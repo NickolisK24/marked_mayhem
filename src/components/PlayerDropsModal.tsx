@@ -134,9 +134,16 @@ export function PlayerDropsModal({
                     </p>
                     <p className="truncate text-xs text-parchment-faint">
                       {drop.boss} ·{" "}
-                      <span className={drop.unique ? "text-gold" : undefined}>
-                        {drop.unique ? "unique" : "duplicate"}
-                      </span>
+                      {drop.overCap ? (
+                        // Received, but past the item's per-team cap, so it
+                        // scored nothing. Said plainly rather than shown as a
+                        // bare 0 that looks like a bug.
+                        <span className="text-warn">over the cap</span>
+                      ) : (
+                        <span className={drop.unique ? "text-gold" : undefined}>
+                          {drop.unique ? "unique" : "duplicate"}
+                        </span>
+                      )}
                     </p>
                   </div>
 
@@ -144,7 +151,9 @@ export function PlayerDropsModal({
                     <div className="text-sm text-parchment tabular-nums">
                       {drop.price === null ? "—" : formatGp(drop.price)}
                     </div>
-                    <div className="text-xs text-parchment-faint tabular-nums">
+                    <div
+                      className={`text-xs tabular-nums ${drop.overCap ? "text-warn" : "text-parchment-faint"}`}
+                    >
                       {formatPoints(drop.points)} pts
                     </div>
                   </div>

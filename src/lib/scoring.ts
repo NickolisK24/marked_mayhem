@@ -7,7 +7,10 @@
  *   - The multiplier is 1.0 for the first N of a given item **per team**, where
  *     N is that item's `Full pts qty limit` (default 1).
  *   - Every drop past that limit scores 0.5×. Duplicates are intentional and
- *     still count — they are never discarded.
+ *     unlimited — a team can keep banking half points indefinitely.
+ *   - A few items carry a per-team cap instead. Past the cap they score nothing
+ *     at all: an Infernal cape scores 60, then 30 for capes two to five, then 0.
+ *     Over-cap drops are still listed, because the team did receive them.
  *   - Order therefore matters: each team's drops are processed oldest-first so
  *     the first N are the ones that get full credit.
  *   - Bonus points come from the drop log's `Bonus` column, typed in by event
@@ -206,7 +209,8 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
     const already = seenCount.get(countKey) ?? 0;
     seenCount.set(countKey, already + 1);
 
-    const multiplier = already < entry.fullPointsLimit ? 1 : 0.5;
+    const overCap = entry.scoringCap !== null && already >= entry.scoringCap;
+    const multiplier = overCap ? 0 : already < entry.fullPointsLimit ? 1 : 0.5;
     const points = entry.points * multiplier;
     // "Unique" means the team had never logged this item before, which is what
     // the Uniques figure on the leaderboard counts. With a quantity limit above
@@ -230,6 +234,7 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
         points,
         unique: isUnique,
         price: drop.price,
+        overCap,
         timestamp: drop.timestamp,
       });
     }

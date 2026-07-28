@@ -385,7 +385,11 @@ describe("scoring — bad input never crashes and never scores silently", () => 
     });
 
     expect(team(result, "Lauren").dropPoints).toBe(80);
-    expect(result.warnings).toHaveLength(0);
+    // A one-line catalog has no Infernal cape, so the configured cap matching
+    // nothing is expected here and covered by its own test.
+    expect(
+      result.warnings.filter((w) => w.kind !== "scoringCapUnmatched"),
+    ).toHaveLength(0);
   });
 
   it("ignores blank drop rows without warning about them", () => {
@@ -740,5 +744,127 @@ describe("scoring — a Price still being calculated by a custom formula", () =>
     });
 
     expect(result.warnings.filter((w) => w.kind === "pendingPrice")).toEqual([]);
+  });
+});
+
+describe("scoring — the Infernal cape per-team cap", () => {
+  // 60 points, and capped at 5 per team by config.
+  const bingo = [
+    "Category,Item,Points",
+    "Inferno,Infernal cape,60",
+    "Inferno,Jal-nib-rek,40",
+  ].join("\n");
+
+  const capes = (n: number) =>
+    dropsCsv(
+      Array.from({ length: n }, (_, i) => [
+        "Lauren",
+        i % 2 === 0 ? "Charzbtw" : "canofeesh",
+        "Inferno",
+        "Infernal cape",
+      ]) as Array<[string, string, string, string]>,
+    );
+
+  it("scores the first cape in full", () => {
+    const result = buildFixture({ bingo, drops: capes(1) });
+    expect(team(result, "Lauren").dropPoints).toBe(60);
+  });
+
+  it("scores capes two to five at half", () => {
+    const result = buildFixture({ bingo, drops: capes(5) });
+    // 60 + 30 + 30 + 30 + 30
+    expect(team(result, "Lauren").dropPoints).toBe(180);
+  });
+
+  it("scores nothing for the sixth cape and beyond", () => {
+    const result = buildFixture({ bingo, drops: capes(9) });
+    expect(team(result, "Lauren").dropPoints).toBe(180);
+  });
+
+  it("marks the over-cap capes so the breakdown can say why", () => {
+    const result = buildFixture({ bingo, drops: capes(7) });
+
+    const all = [
+      ...player(result, "Charzbtw").drops,
+      ...player(result, "canofeesh").drops,
+    ].sort((a, b) => a.row - b.row);
+
+    expect(all.map((d) => d.points)).toEqual([60, 30, 30, 30, 30, 0, 0]);
+    expect(all.map((d) => d.overCap)).toEqual([
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+    ]);
+  });
+
+  it("still lists an over-cap cape, since the team did receive it", () => {
+    const result = buildFixture({ bingo, drops: capes(7) });
+
+    const logged =
+      player(result, "Charzbtw").drops.length +
+      player(result, "canofeesh").drops.length;
+    expect(logged).toBe(7);
+  });
+
+  it("counts the cap per team, so each team gets its own five", () => {
+    const rows: Array<[string, string, string, string]> = [];
+    for (let i = 0; i < 7; i += 1) {
+      rows.push(["Lauren", "Charzbtw", "Inferno", "Infernal cape"]);
+      rows.push(["Faedaa", "MarylandRat", "Inferno", "Infernal cape"]);
+    }
+    const result = buildFixture({ bingo, drops: dropsCsv(rows) });
+
+    expect(team(result, "Lauren").dropPoints).toBe(180);
+    expect(team(result, "Faedaa").dropPoints).toBe(180);
+  });
+
+  it("leaves uncapped items unlimited", () => {
+    const rows = Array.from({ length: 9 }, () => [
+      "Lauren",
+      "Charzbtw",
+      "Inferno",
+      "Jal-nib-rek",
+    ]) as Array<[string, string, string, string]>;
+    const result = buildFixture({ bingo, drops: dropsCsv(rows) });
+
+    // 40 + eight at 20: half points keep accruing with no ceiling.
+    expect(team(result, "Lauren").dropPoints).toBe(40 + 8 * 20);
+  });
+
+  it("counts the first cape as the team's unique and the rest as duplicates", () => {
+    const result = buildFixture({ bingo, drops: capes(7) });
+    expect(team(result, "Lauren").uniques).toBe(1);
+  });
+
+  it("matches the cap on the item name whatever the boss column says", () => {
+    const other = [
+      "Category,Item,Points",
+      "TzKal-Zuk,Infernal cape,60",
+    ].join("\n");
+    const rows = Array.from({ length: 7 }, () => [
+      "Lauren",
+      "Charzbtw",
+      "TzKal-Zuk",
+      "Infernal cape",
+    ]) as Array<[string, string, string, string]>;
+
+    const result = buildFixture({ bingo: other, drops: dropsCsv(rows) });
+    expect(team(result, "Lauren").dropPoints).toBe(180);
+  });
+
+  it("flags a configured cap that matches no catalog item", () => {
+    const result = buildFixture({
+      bingo: "Category,Item,Points\nCallisto,Dragon 2h sword,60",
+    });
+
+    const warning = result.warnings.find(
+      (w) => w.kind === "scoringCapUnmatched",
+    );
+    expect(warning?.message).toContain("infernal cape");
+    expect(warning?.message).toContain("5");
   });
 });
