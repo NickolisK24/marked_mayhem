@@ -1,15 +1,15 @@
 /**
  * The DROPS tab: rows appended live during the event.
  *
- * Five columns are read — Team, User, Boss, Drop and Bonus — plus an optional
- * Timestamp. The sheet's own Points Earned / Multiplier / Full Points / # Seen /
- * # from Team / # for Full Points columns are deliberately ignored and
+ * Six columns are read — Team, User, Boss, Drop, Price and Bonus — plus an
+ * optional Timestamp. The sheet's own Points Earned / Multiplier / Full Points /
+ * # Seen / # from Team / # for Full Points columns are deliberately ignored and
  * recomputed from the catalog: their formulas are already partly broken, and a
  * scoring path that reads them cannot be tested.
  *
- * `Bonus` is the exception. It is not a formula — event managers type bonus
- * points into it by hand — so it is the source of truth for bonuses and is read
- * as given.
+ * `Bonus` and `Price` are the exceptions. Bonus points are typed in by event
+ * managers, and Price is the drop log's own accumulated GP value, so both are
+ * read as given rather than recomputed.
  */
 
 import type { SheetTable } from "./csv";
@@ -21,6 +21,16 @@ export const DROPS_COLUMNS = ["Team", "User", "Boss", "Drop"] as const;
 
 /** Manually-entered bonus points. Optional; blank on ordinary drop rows. */
 export const DROPS_BONUS_COLUMN = "Bonus";
+
+/**
+ * The drop log's own GP value for the item, which the sheet accumulates.
+ *
+ * Read by name when the header exists, and otherwise from column H, where the
+ * live sheet keeps it. Unlike the scoring columns this is data rather than a
+ * derived score, so there is nothing to recompute it from.
+ */
+export const DROPS_PRICE_COLUMN = "Price";
+const DROPS_PRICE_FALLBACK_INDEX = 7; // column H
 
 /** Optional; when present it orders the multiplier. */
 export const DROPS_TIMESTAMP_COLUMN = "Timestamp";
@@ -46,6 +56,11 @@ export function parseDrops(table: SheetTable, tab: string): DropsResult {
     const boss = tidy(row.get("Boss"));
     const drop = tidy(row.get("Drop"));
     const bonus = parseNumber(row.get(DROPS_BONUS_COLUMN));
+    const price = parseNumber(
+      row.has(DROPS_PRICE_COLUMN)
+        ? row.get(DROPS_PRICE_COLUMN)
+        : (row.cells[DROPS_PRICE_FALLBACK_INDEX] ?? ""),
+    );
 
     // The drop log is pre-padded with empty rows whose formula columns still
     // evaluate to something, so blankness is judged on these fields only —
@@ -107,6 +122,7 @@ export function parseDrops(table: SheetTable, tab: string): DropsResult {
       user,
       boss,
       drop,
+      price,
       bonus: hasBonus ? bonus : null,
       timestamp,
     });

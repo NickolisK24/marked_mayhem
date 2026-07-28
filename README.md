@@ -124,8 +124,9 @@ Scoring is recomputed from scratch in `src/lib/scoring.ts`. The sheet's own
 `# for Full Points` columns are **not read** — those formulas are partly broken,
 and a scoring path that reads them cannot be tested.
 
-`Bonus` is the exception: it is not a formula but a number an event manager
-types in, so it is read as given.
+`Bonus` and `Price` (column H) are the exceptions. Bonus points are typed in by
+an event manager, and Price is the drop log's own accumulated GP value; neither
+is a score to recompute, so both are read as given.
 
 For each drop, in chronological order within a team:
 
@@ -163,6 +164,7 @@ The site is built on the assumption that the sheet will break mid-event.
 | A required column is removed | Error banner naming the tab and the missing columns |
 | A drop references an unknown item, boss, or RSN | That row is skipped and listed in the dismissible warnings panel |
 | A cell contains `#REF!`, `#N/A`, `$0`, or `40,331,957` | Parsed correctly; broken numbers become "missing", never a silent zero |
+| A drop has no `Price` | Shown as a dash in the breakdown, not as 0 GP |
 | The catalog has no price or quantity-limit column | Neither is required; GP is not tracked and limits default to 1 |
 | Google is unreachable | Last loaded data stays on screen with a "couldn't refresh" indicator |
 | Blank rows in the drop log | Skipped silently — they are the norm, not an error |
