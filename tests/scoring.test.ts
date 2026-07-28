@@ -340,14 +340,18 @@ describe("scoring — bad input never crashes and never scores silently", () => 
     expect(result.warnings.map((w) => w.kind)).toContain("unknownItem");
   });
 
-  it("refuses to score a bonus-category row logged in the drop log", () => {
+  it("awards a bonus-category row as bonus, never as drop points", () => {
     const result = buildFixture({
       drops: dropsCsv([["Lauren", "Charzbtw", "Misc.", "Boss Pets"]]),
     });
 
+    // Named on the row, but Misc. is a team award: it must not reach the drop
+    // total, the drop count, or the uniques figure.
     expect(team(result, "Lauren").dropPoints).toBe(0);
-    // Misc. is not a boss category, so it does not exist in the join map.
-    expect(result.warnings.length).toBeGreaterThan(0);
+    expect(team(result, "Lauren").bonusPoints).toBe(50);
+    expect(team(result, "Lauren").dropCount).toBe(0);
+    expect(team(result, "Lauren").uniques).toBe(0);
+    expect(result.warnings).toEqual([]);
   });
 
   it("trusts the roster over the drop log's Team column, and flags the clash", () => {
@@ -885,5 +889,223 @@ describe("scoring — the Infernal cape per-team cap", () => {
   it("never shows the suffix in the item name", () => {
     const result = buildFixture({ bingo, drops: capes(1) });
     expect(player(result, "Charzbtw").drops[0]!.item).toBe("Infernal Cape");
+  });
+});
+
+describe("scoring — team totals do not depend on the order of the drop log", () => {
+  // DROPS has no Timestamp column and is not getting one: event managers accept
+  // submissions by hand and will not also record when each happened. So drops
+  // are ordered by row position, which is only chronological while rows are
+  // appended rather than inserted.
+  //
+  // These tests pin down how much that actually costs. Exactly N of an item
+  // score full points no matter which N they are, so a team's total is the same
+  // under every ordering — an inserted row cannot move the leaderboard. What it
+  // can move is which *player* is credited with the full points.
+  const rows: Array<[string, string, string, string]> = [
+    // Uncapped, limit 1: one of these is full, the other two are half.
+    ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"],
+    ["Lauren", "canofeesh", "Callisto", "Dragon 2h sword"],
+    ["Lauren", "Lauren", "Callisto", "Dragon 2h sword"],
+    // Uncapped, limit 3: three full, one half.
+    ["Lauren", "Charzbtw", "Callisto", "Any Shard"],
+    ["Lauren", "canofeesh", "Callisto", "Any Shard"],
+    ["Lauren", "Lauren", "Callisto", "Any Shard"],
+    ["Lauren", "canofeesh", "Callisto", "Any Shard"],
+    // Capped at 5: all five full, the sixth nothing.
+    ...Array.from(
+      { length: 6 },
+      (_, i): [string, string, string, string] => [
+        "Lauren",
+        i % 2 === 0 ? "Charzbtw" : "canofeesh",
+        "Zuk",
+        "Infernal Cape",
+      ],
+    ),
+  ];
+
+  /** Every permutation of `items`, generated deterministically. */
+  function permutations<T>(items: T[]): T[][] {
+    if (items.length <= 1) return [items];
+    const out: T[][] = [];
+    for (let i = 0; i < items.length; i += 1) {
+      const rest = [...items.slice(0, i), ...items.slice(i + 1)];
+      for (const tail of permutations(rest)) out.push([items[i]!, ...tail]);
+    }
+    return out;
+  }
+
+  const baseline = team(buildFixture({ drops: dropsCsv(rows) }), "Lauren");
+
+  it("scores the fixture as expected in its original order", () => {
+    // 60 + 30 + 30, then 5 + 5 + 5 + 2.5, then 60 x 5 + 0.
+    expect(baseline.dropPoints).toBe(437.5);
+    expect(baseline.uniques).toBe(3);
+    expect(baseline.dropCount).toBe(13);
+  });
+
+  it("gives the same team total for every ordering of the same drops", () => {
+    // 13 rows is far too many to permute exhaustively, so permute a
+    // representative subset in full: one of each item, plus a fourth row that
+    // makes one of them a duplicate.
+    const subset = rows.slice(0, 4);
+    const totals = new Set(
+      permutations(subset).map(
+        (order) => team(buildFixture({ drops: dropsCsv(order) }), "Lauren").dropPoints,
+      ),
+    );
+    expect([...totals]).toHaveLength(1);
+  });
+
+  it("gives the same team total when rows are reversed or rotated", () => {
+    const orderings = [
+      [...rows].reverse(),
+      [...rows.slice(6), ...rows.slice(0, 6)],
+      [...rows.slice(1), rows[0]!],
+    ];
+    for (const order of orderings) {
+      const scored = team(buildFixture({ drops: dropsCsv(order) }), "Lauren");
+      expect(scored.dropPoints).toBe(baseline.dropPoints);
+      expect(scored.uniques).toBe(baseline.uniques);
+      expect(scored.dropCount).toBe(baseline.dropCount);
+    }
+  });
+
+  it("can move full points between players on the same team", () => {
+    // The cost of row order, stated precisely: the same 13 drops, and one
+    // player's personal total changes depending on who was written down first.
+    const first = player(buildFixture({ drops: dropsCsv(rows) }), "Charzbtw");
+    const second = player(
+      buildFixture({ drops: dropsCsv([...rows].reverse()) }),
+      "Charzbtw",
+    );
+    expect(first.points).not.toBe(second.points);
+    expect(first.dropCount).toBe(second.dropCount);
+  });
+});
+
+describe("scoring — Misc. and Team Challenges are awarded to a team, not a person", () => {
+  // These categories are won by a team. The drop log leaves column C (User)
+  // empty for them, so they must not be held to the rule that an item drop
+  // needs a rostered player — that rule exists to stop a hand-typed Team cell
+  // moving *item* points, which is not what these rows are.
+
+  it("scores a Misc. award with no User at all", () => {
+    const result = buildFixture({
+      drops: dropsCsv([["Lauren", "", "Misc.", "Boss Pets"]]),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(50);
+    expect(team(result, "Lauren").totalPoints).toBe(50);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("scores a Team Challenges award with no User at all", () => {
+    const result = buildFixture({
+      drops: dropsCsv([["Lauren", "", "Team Challenges", "Team Challenge 1st"]]),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(100);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("prefers the row's own Bonus cell over the catalog's points", () => {
+    // The sheet fills Bonus in from the catalog, but an event manager can
+    // override it — a half award, or a challenge scored differently on the day.
+    const result = buildFixture({
+      drops: dropsWithBonusCsv([["Lauren", "", "Misc.", "Boss Pets", "25"]]),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(25);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("does not double-count when Bonus and the catalog agree", () => {
+    // The regression this guards: the Bonus cell was already being added for
+    // every row, so pricing the award from the catalog as well would pay twice.
+    const result = buildFixture({
+      drops: dropsWithBonusCsv([["Lauren", "", "Misc.", "Boss Pets", "50"]]),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(50);
+  });
+
+  it("still accepts a User on the row, and credits their team", () => {
+    const result = buildFixture({
+      drops: dropsCsv([["", "Charzbtw", "Misc.", "Boss Pets"]]),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(50);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("keeps the award off the player's own total and breakdown", () => {
+    // A bonus belongs to a team. Naming someone on the row must not move their
+    // personal standing or put a non-drop in their drop list.
+    const result = buildFixture({
+      drops: dropsCsv([["Lauren", "Charzbtw", "Misc.", "Boss Pets"]]),
+    });
+
+    expect(player(result, "Charzbtw").points).toBe(0);
+    expect(player(result, "Charzbtw").dropCount).toBe(0);
+    expect(player(result, "Charzbtw").drops).toEqual([]);
+  });
+
+  it("flags an award that is in neither the catalog nor the Bonus column", () => {
+    // The loud-failure rule still applies: an unrecognised award is reported,
+    // never guessed at.
+    const result = buildFixture({
+      drops: dropsCsv([["Lauren", "", "Misc.", "Something Invented"]]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(0);
+    expect(result.warnings.map((w) => w.kind)).toContain("unknownItem");
+  });
+
+  it("scores an unlisted award that carries its own Bonus value", () => {
+    // A one-off challenge nobody added to the catalog still pays, because the
+    // manager typed the number in.
+    const result = buildFixture({
+      drops: dropsWithBonusCsv([
+        ["Lauren", "", "Team Challenges", "Invented On The Day", "75"],
+      ]),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(75);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("needs a recognisable team, and says so when there is not one", () => {
+    const result = buildFixture({
+      drops: dropsCsv([["Nonexistent", "", "Misc.", "Boss Pets"]]),
+    });
+
+    expect(result.warnings.map((w) => w.kind)).toContain("unknownTeam");
+  });
+
+  it("accepts the bare Misc spelling as well as Misc.", () => {
+    const result = buildFixture({
+      bingo: [BINGO_CSV, "Misc,Boss Pets,MiscBoss Pets,50,1"].join("\n"),
+      drops: dropsCsv([["Lauren", "", "Misc", "Boss Pets"]]),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(50);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("adds team awards to drop points rather than replacing them", () => {
+    const result = buildFixture({
+      drops: dropsCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"],
+        ["Lauren", "", "Misc.", "Boss Pets"],
+        ["Lauren", "", "Team Challenges", "Team Challenge 1st"],
+      ]),
+    });
+
+    const scored = team(result, "Lauren");
+    expect(scored.dropPoints).toBe(60);
+    expect(scored.bonusPoints).toBe(150);
+    expect(scored.totalPoints).toBe(210);
+    expect(scored.dropCount).toBe(1);
   });
 });

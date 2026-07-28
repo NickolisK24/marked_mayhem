@@ -79,6 +79,7 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
   const entries: CatalogEntry[] = [];
   const byCategory = new Map<string, CatalogEntry[]>();
   const bonusEntries: CatalogEntry[] = [];
+  const bonusByKey = new Map<string, CatalogEntry>();
 
   // Named columns when the tab has a header, column positions when it does not.
   const cell = (row: SheetRow, column: string, at: number | null): string => {
@@ -145,6 +146,8 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
 
     if (isBonusCategory(category)) {
       bonusEntries.push(entry);
+      // First listing wins, matching how a duplicate scoreable item is handled.
+      if (!bonusByKey.has(entry.key)) bonusByKey.set(entry.key, entry);
       continue;
     }
 
@@ -195,7 +198,7 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
   }
 
   return {
-    catalog: { byKey, entries, byCategory, bonusEntries },
+    catalog: { byKey, entries, byCategory, bonusEntries, bonusByKey },
     warnings,
   };
 }

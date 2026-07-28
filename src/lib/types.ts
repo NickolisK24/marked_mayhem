@@ -71,8 +71,14 @@ export interface Catalog {
   entries: CatalogEntry[];
   /** Boss name (as typed) -> its entries, in sheet order. Bonus categories excluded. */
   byCategory: Map<string, CatalogEntry[]>;
-  /** Entries under Misc. / Team Challenges, shown for reference only. */
+  /** Entries under Misc. / Team Challenges, in sheet order. */
   bonusEntries: CatalogEntry[];
+  /**
+   * Bonus entries by composite key, so a Misc. / Team Challenges row in the
+   * drop log can be priced from the catalog. Kept apart from `byKey` because
+   * these award team bonus points rather than drop points.
+   */
+  bonusByKey: Map<string, CatalogEntry>;
 }
 
 /* -------------------------------------------------------------------------- */

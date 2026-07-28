@@ -90,7 +90,6 @@ name is wrong; the site distinguishes the two in its error banner.
 
 ### Before the event starts
 
-- Add a `Timestamp` column to `DROPS` (recommended — see below).
 - The event window is set in `src/config/event.ts` (`EVENT_START` and
   `EVENT_END`), currently 30 July 2026 17:00 to 9 August 2026 17:00 US Eastern.
   The header counts down to the start before the event, to the end during it,
@@ -143,6 +142,11 @@ For each drop, in chronological order within a team:
 4. Anything in the row's `Bonus` column is added to that team's bonus points.
    That column is typed in by event managers, so it is read as given rather
    than recomputed.
+5. A row in a bonus category (`Misc.`, `Team Challenges`) is a team award rather
+   than a drop. It carries no `User` — nobody personally won it — so it is
+   exempt from the rostered-player requirement, and it is priced from the
+   `Bonus` cell when there is one and from the catalog when there is not.
+   Awards land in the team's bonus total and never in a player's.
 
 Team totals carry drop points and bonus points separately, and the leaderboard
 shows the split. Player totals cover drops only — a bonus belongs to a team, not
@@ -151,10 +155,19 @@ who is second for their team gets the half.
 
 ### Drop ordering
 
-If `DROPS` has a `Timestamp` column, drops are ordered by it. Otherwise they are
-ordered by row position, which is correct as long as rows are only appended. The
-order only affects which of a repeated item gets full points, never the total
-number of drops counted.
+`DROPS` has no `Timestamp` column — submissions are accepted by hand and nobody
+is going to record when each one happened — so drops are ordered by row
+position. That is chronological as long as rows are appended rather than
+inserted.
+
+Ordering is cheaper than it looks. Exactly N of an item score full points
+whichever N they are, so **every team total is identical under any ordering**;
+an inserted row cannot move the leaderboard. It can only change which player is
+credited with the full points versus the half. `tests/scoring.test.ts` pins this
+down by scoring every permutation of a mixed fixture and asserting the team
+total never moves — and, separately, that player attribution does.
+
+If a `Timestamp` column is ever added, ordering switches to it automatically.
 
 ---
 
@@ -203,7 +216,8 @@ tests/format.test.ts    points, relative time and the event-window countdown
 
 The negative fixtures matter as much as the positive ones: missing columns,
 blank rows, `#REF!` cells, comma-formatted numbers, an unknown RSN, an unknown
-item, a bonus with nobody to award it to, a team with zero drops, and a
+item, a bonus with nobody to award it to, a team award in neither the catalog
+nor the `Bonus` column, a team with zero drops, and a
 duplicate item crossing its quantity limit mid-sequence.
 
 ### Testing without the real sheet
