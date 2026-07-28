@@ -20,6 +20,7 @@ export type WarningKind =
   | "catalogDuplicate"
   | "catalogKeyMismatch"
   | "unparsedNumber"
+  | "pendingPrice"
   | "rosterAmbiguousAlias"
   | "bossNotInCatalog";
 

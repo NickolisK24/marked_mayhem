@@ -49,6 +49,7 @@ const KIND_LABELS: Record<string, string> = {
   catalogDuplicate: "Duplicate catalog row",
   catalogKeyMismatch: "Catalog key mismatch",
   unparsedNumber: "Unreadable number",
+  pendingPrice: "Price still calculating",
   unknownBonusType: "Unrecognised bonus type",
   rosterAmbiguousAlias: "Ambiguous roster name",
 };

@@ -668,3 +668,77 @@ describe("scoring — reading Price when a row's named cell is blank", () => {
     expect(player(result, "Charzbtw").drops[0]!.price).toBeNull();
   });
 });
+
+describe("scoring — a Price still being calculated by a custom formula", () => {
+  it("shows an uncomputed price as unknown rather than zero", () => {
+    // The drop log prices items with =OSRSPRICE(), an Apps Script function.
+    // Custom functions do not run for an anonymous read, so an uncached cell
+    // arrives as the literal text "Loading...".
+    const result = buildFixture({
+      drops: dropsWithPriceCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword", "Loading..."],
+      ]),
+    });
+
+    expect(player(result, "Charzbtw").drops[0]!.price).toBeNull();
+    expect(player(result, "Charzbtw").gpValue).toBe(0);
+  });
+
+  it("still scores the drop's points normally", () => {
+    const result = buildFixture({
+      drops: dropsWithPriceCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword", "Loading..."],
+      ]),
+    });
+
+    expect(team(result, "Lauren").dropPoints).toBe(60);
+  });
+
+  it("says so once, not once per row", () => {
+    const result = buildFixture({
+      drops: dropsWithPriceCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword", "Loading..."],
+        ["Lauren", "canofeesh", "Callisto", "Voidwaker hilt", "Loading…"],
+        ["Faedaa", "MarylandRat", "Venenatis", "Treasonous ring", "Loading"],
+      ]),
+    });
+
+    const pending = result.warnings.filter((w) => w.kind === "pendingPrice");
+    expect(pending).toHaveLength(1);
+    expect(pending[0]!.value).toBe("3");
+    expect(pending[0]!.message).toContain("Paste special");
+  });
+
+  it("does not complain when every price computed", () => {
+    const result = buildFixture({
+      drops: dropsWithPriceCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword", "$34,494,507"],
+      ]),
+    });
+
+    expect(player(result, "Charzbtw").drops[0]!.price).toBe(34_494_507);
+    expect(result.warnings.filter((w) => w.kind === "pendingPrice")).toEqual([]);
+  });
+
+  it("reads the currency-formatted values the sheet exports", () => {
+    const result = buildFixture({
+      drops: dropsWithPriceCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword", "$47,912,500"],
+        ["Lauren", "canofeesh", "Callisto", "Voidwaker hilt", "$6,207,870"],
+      ]),
+    });
+
+    expect(player(result, "Charzbtw").drops[0]!.price).toBe(47_912_500);
+    expect(player(result, "canofeesh").drops[0]!.price).toBe(6_207_870);
+  });
+
+  it("does not mistake a blank price for a pending one", () => {
+    const result = buildFixture({
+      drops: dropsWithPriceCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword", ""],
+      ]),
+    });
+
+    expect(result.warnings.filter((w) => w.kind === "pendingPrice")).toEqual([]);
+  });
+});

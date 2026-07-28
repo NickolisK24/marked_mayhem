@@ -165,6 +165,7 @@ The site is built on the assumption that the sheet will break mid-event.
 | A drop references an unknown item, boss, or RSN | That row is skipped and listed in the dismissible warnings panel |
 | A cell contains `#REF!`, `#N/A`, `$0`, or `40,331,957` | Parsed correctly; broken numbers become "missing", never a silent zero |
 | A drop has no `Price` | Shown as a dash in the breakdown, not as 0 GP |
+| A `Price` cell is a custom formula still showing `Loading...` | Counted and reported once in the warnings panel, with the fix; never guessed at |
 | The catalog has no price or quantity-limit column | Neither is required; GP is not tracked and limits default to 1 |
 | Google is unreachable | Last loaded data stays on screen with a "couldn't refresh" indicator |
 | Blank rows in the drop log | Skipped silently — they are the norm, not an error |
