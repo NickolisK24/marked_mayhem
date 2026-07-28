@@ -114,17 +114,17 @@ but it never scores from it. Scoring always uses `Category` and `Item` directly.
 This is deliberate: the concatenation format is not guaranteed stable, and a
 formula error in `Key` should not be able to break scoring.
 
-### Bonus categories
+### `Misc.` and `Team Challenges`
 
-Two categories are **not** bosses:
+Two categories are awards rather than bosses:
 
 - `Misc.` — Boss Pets, Jars, Bounty placements, Most Team Profit, Most Team
   Uniques
 - `Team Challenges` — Team Challenge placements, Team Participation
 
-These are not scoreable items. They are awarded by typing the points into the
-`Bonus` column of the `DROPS` tab (see below). Their rows in `BINGO` are there
-as a reference list of what each bonus is worth.
+They are **ordinary scoreable categories** and need nothing special here: list
+them with their points like any boss, and log them in `DROPS` the same way. See
+the `DROPS` notes for how a whole-team award is written down.
 
 ---
 
@@ -135,69 +135,47 @@ Rows are appended during the event. Only these columns are read:
 | Column | Required | Notes |
 | --- | --- | --- |
 | `Team` | no | Cross-checked against the roster. The **roster wins** if they disagree, and the row is flagged. |
-| `User` | yes | The RSN that got the drop. Any RSN on the roster works — see aliases below. |
+| `User` | no | The RSN that got the drop. Any RSN on the roster works — see aliases below. Leave it empty for a whole-team award. |
 | `Boss` | yes | Must match a `Category` in `BINGO`. |
 | `Drop` | yes | Must match an `Item` in `BINGO`, **for that boss**. |
 | `Price` | no | GP value of the item, column **H**. See below. |
-| `Bonus` | no | Manually-awarded points. See below. |
 | `Timestamp` | no | Not used, and not needed. See below. |
 
-### Bonus points
+### Whole-team rows: leave `User` empty
 
-`Bonus` is the one number the site takes from this tab as written, because it is
-typed in by an event manager rather than calculated. Whatever is in it is added
-to that row's team, on top of anything the row's item scores.
+Every row scores for a team. **A row that names a `User` also scores for that
+player; a row with `User` left empty scores for the team alone.**
 
-A bonus row does **not** need a boss or an item — a row with just a team and a
-bonus is perfectly valid:
+That is how a whole-team award is written down. Team challenges go to the whole
+team, while individual challenges go to whoever got it — and since both are
+logged in the same categories, the `User` cell is the only thing telling them
+apart:
 
-| Team | User | Boss | Drop | Bonus |
+| Team | User | Boss | Drop | |
 | --- | --- | --- | --- | --- |
-| Lauren | smol tiddies | Callisto | Dragon 2h sword | |
-| Lauren | | | | 250 |
-| Oops | Oops Im Main | | | 400 |
+| harmony | | Team Challenges | Team 1st | whole team |
+| Faedaa | MarylandRat | Team Challenges | Team Participation | one person |
+| Oops | | Misc. | Jars | whole team |
+| Lauren | Charzbtw | Callisto | Dragon 2h sword | one person |
 
-Bonus points show separately from drop points on the team leaderboard and both
-add into the team total. They are **not** added to individual player totals — a
-bonus belongs to the team.
+Either way the team banks the points, and they count toward its drops and
+uniques. Only a named row moves anybody's individual standing.
 
-A bonus row needs either a `Team` or a `User` so the site knows who to award it
-to; a row with neither is flagged. A blank, zero or `#REF!` bonus is simply
-ignored, not warned about.
+**An unrecognised RSN is a different matter.** If `User` is filled in but does
+not match the roster, the row is flagged and **not** scored, rather than falling
+back to the `Team` column. A blank means "the whole team"; a typo means somebody
+made a mistake, and quietly scoring it to a hand-typed team name would hide
+that.
 
-Note that an **item** drop still needs a `User` that is on the roster — a team
-name alone is not enough for one. That is deliberate: crediting an item on the
-strength of a hand-typed team cell would move points without anyone noticing.
-`Misc.` and `Team Challenges` are the exception, below, because a team rather
-than a person wins those.
+### The `Bonus` column is not used
 
-### `Misc.` and `Team Challenges` awards
+Column **M** is a leftover from the sheet this one's layout was copied from. It
+is hidden and unused, and the site does not read it. A number typed into it
+scores nothing.
 
-These two categories are picked from the same dropdown as a boss and score from
-their `BINGO` points exactly like a boss drop. **They have nothing to do with
-the `Bonus` column.**
-
-The only difference is that a **team** wins them rather than a person, so their
-rows leave `User` empty:
-
-| Team | User | Boss | Drop |
-| --- | --- | --- | --- |
-| Faedaa | | Misc. | Most Team Uniques |
-| harmony | | Team Challenges | Team 1st |
-| Oops | | Misc. | Jars |
-
-The site scores these to the team named in `Team`. They count toward that team's
-drop points, drop count and uniques, like any other catalog item, and the usual
-quantity rules apply — a repeat of the same award scores half.
-
-Naming somebody in `User` is allowed and credits them on the player leaderboard;
-leaving it blank simply means nobody is credited individually. An award that is
-not in the catalog is flagged rather than guessed at.
-
-> The sheet's own points for these appear in `Points Earned` (column N). Like
-> every other computed column, that is **not read** — the site recomputes from
-> `BINGO`, so the two should agree, and if they ever disagree the catalog is the
-> one that decides.
+> The sheet's own `Points Earned` (column N) is likewise **not read** — the site
+> recomputes every score from `BINGO`, so the two should agree, and if they ever
+> disagree the catalog is the one that decides.
 
 ### The `Price` column
 
@@ -348,7 +326,8 @@ For each drop, in chronological order within a team:
    score **full** points, with no half tier at all, and past N per team it
    scores nothing. Over-cap drops are still listed in the player's breakdown,
    marked "over the cap", because the team did receive them.
-5. Anything in the row's `Bonus` column is added to that team's bonus points.
+5. A row with no `User` scores for its team alone; a row that names one scores
+   for the team and that player both.
 
 ### Capping an item: `(Limit N)`
 
@@ -375,9 +354,8 @@ anything is matched or displayed, so:
 To cap another item, add the suffix to its name in `BINGO`. Nothing needs
 changing on the site.
 
-Team totals are drop points plus bonus points, tracked separately. Uniques
-counts distinct catalog items claimed. Player totals use the same arithmetic,
-attributed to whoever logged the drop; because the quantity limit is a
-team-level resource, a player who is second for their team gets the half.
+Uniques counts distinct catalog items claimed. Player totals use the same
+arithmetic, attributed to whoever is named in `User`; because the quantity limit
+is a team-level resource, a player who is second for their team gets the half.
 
 GP values are not tracked.

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   buildFixture,
   dropsCsv,
-  dropsWithBonusCsv,
   dropsWithPriceCsv,
   player,
   team,
@@ -15,7 +14,7 @@ describe("scoring — base cases", () => {
       drops: dropsCsv([["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"]]),
     });
 
-    expect(team(result, "Lauren").dropPoints).toBe(60);
+    expect(team(result, "Lauren").totalPoints).toBe(60);
     expect(team(result, "Lauren").uniques).toBe(1);
     expect(team(result, "Lauren").dropCount).toBe(1);
   });
@@ -31,7 +30,7 @@ describe("scoring — base cases", () => {
 
     // 60 at Callisto + 25 at Chaos Elemental + 50 at Venenatis, all full credit:
     // they are three distinct catalog entries, not three of the same item.
-    expect(team(result, "Lauren").dropPoints).toBe(135);
+    expect(team(result, "Lauren").totalPoints).toBe(135);
     expect(team(result, "Lauren").uniques).toBe(3);
   });
 
@@ -53,7 +52,7 @@ describe("scoring — base cases", () => {
       drops: dropsCsv([["harmony", "harmony", "Callisto", "Voidwaker hilt"]]),
     });
 
-    expect(team(result, "harmony").dropPoints).toBe(80);
+    expect(team(result, "harmony").totalPoints).toBe(80);
     expect(result.warnings).toHaveLength(0);
   });
 });
@@ -69,7 +68,7 @@ describe("scoring — the quantity limit and the half-point multiplier", () => {
     });
 
     // 60 + 30 + 30
-    expect(team(result, "Lauren").dropPoints).toBe(120);
+    expect(team(result, "Lauren").totalPoints).toBe(120);
     // Duplicates still count as drops and still add GP, they just score less.
     expect(team(result, "Lauren").dropCount).toBe(3);
     expect(team(result, "Lauren").uniques).toBe(1);
@@ -87,7 +86,7 @@ describe("scoring — the quantity limit and the half-point multiplier", () => {
     });
 
     // 5 + 5 + 5 + 2.5 + 2.5
-    expect(team(result, "Lauren").dropPoints).toBe(20);
+    expect(team(result, "Lauren").totalPoints).toBe(20);
 
     // Which drops took the half is visible in the per-player split: Charzbtw
     // logged 1st, 3rd and 4th (5 + 5 + 2.5), canofeesh 2nd and 5th (5 + 2.5).
@@ -104,8 +103,8 @@ describe("scoring — the quantity limit and the half-point multiplier", () => {
     });
 
     // Both teams get full credit for their first one.
-    expect(team(result, "Lauren").dropPoints).toBe(60);
-    expect(team(result, "Faedaa").dropPoints).toBe(60);
+    expect(team(result, "Lauren").totalPoints).toBe(60);
+    expect(team(result, "Faedaa").totalPoints).toBe(60);
   });
 
   it("counts the limit per item, not per boss", () => {
@@ -117,7 +116,7 @@ describe("scoring — the quantity limit and the half-point multiplier", () => {
     });
 
     // Different catalog entries, so each is the team's first of that entry.
-    expect(team(result, "Lauren").dropPoints).toBe(10);
+    expect(team(result, "Lauren").totalPoints).toBe(10);
     expect(team(result, "Lauren").uniques).toBe(2);
   });
 
@@ -192,111 +191,6 @@ describe("scoring — player attribution", () => {
   });
 });
 
-describe("scoring — bonus points from the drop log's Bonus column", () => {
-  it("adds a bonus on a drop row to the team, on top of the drop's points", () => {
-    const result = buildFixture({
-      drops: dropsWithBonusCsv([
-        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword", "250"],
-      ]),
-    });
-
-    const lauren = team(result, "Lauren");
-    expect(lauren.dropPoints).toBe(60);
-    expect(lauren.bonusPoints).toBe(250);
-    expect(lauren.totalPoints).toBe(310);
-    expect(result.warnings).toEqual([]);
-  });
-
-  it("accepts a bonus-only row with no boss or item", () => {
-    const result = buildFixture({
-      drops: dropsWithBonusCsv([["Lauren", "Charzbtw", "", "", "400"]]),
-    });
-
-    const lauren = team(result, "Lauren");
-    expect(lauren.dropPoints).toBe(0);
-    expect(lauren.bonusPoints).toBe(400);
-    expect(lauren.dropCount).toBe(0);
-    expect(result.warnings).toEqual([]);
-  });
-
-  it("awards a bonus row that names only a team, with no player", () => {
-    const result = buildFixture({
-      drops: dropsWithBonusCsv([["harmony", "", "", "", "50"]]),
-    });
-
-    expect(team(result, "harmony").bonusPoints).toBe(50);
-    expect(result.warnings).toEqual([]);
-  });
-
-  it("keeps bonus points out of individual player totals", () => {
-    const result = buildFixture({
-      drops: dropsWithBonusCsv([
-        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword", "250"],
-      ]),
-    });
-
-    expect(player(result, "Charzbtw").points).toBe(60);
-  });
-
-  it("sums several bonus rows for the same team", () => {
-    const result = buildFixture({
-      drops: dropsWithBonusCsv([
-        ["Lauren", "Charzbtw", "", "", "250"],
-        ["Lauren", "canofeesh", "", "", "100"],
-        ["Faedaa", "MarylandRat", "", "", "75"],
-      ]),
-    });
-
-    expect(team(result, "Lauren").bonusPoints).toBe(350);
-    expect(team(result, "Faedaa").bonusPoints).toBe(75);
-  });
-
-  it("reads comma-formatted and negative bonus values", () => {
-    const result = buildFixture({
-      drops: dropsWithBonusCsv([
-        ["Lauren", "Charzbtw", "", "", "1,250"],
-        ["Lauren", "canofeesh", "", "", "-50"],
-      ]),
-    });
-
-    expect(team(result, "Lauren").bonusPoints).toBe(1200);
-  });
-
-  it("ignores a blank, zero or broken Bonus cell without warning", () => {
-    const result = buildFixture({
-      drops: dropsWithBonusCsv([
-        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword", ""],
-        ["Lauren", "canofeesh", "Callisto", "Voidwaker hilt", "0"],
-        ["Faedaa", "MarylandRat", "Venenatis", "Treasonous ring", "#REF!"],
-      ]),
-    });
-
-    expect(team(result, "Lauren").bonusPoints).toBe(0);
-    expect(team(result, "Faedaa").bonusPoints).toBe(0);
-    expect(team(result, "Lauren").dropPoints).toBe(140);
-    expect(result.warnings).toEqual([]);
-  });
-
-  it("flags a bonus with nobody to award it to", () => {
-    const result = buildFixture({
-      drops: dropsWithBonusCsv([["", "", "", "", "500"]]),
-    });
-
-    expect(result.teams.every((t) => t.bonusPoints === 0)).toBe(true);
-    const warning = result.warnings.find((w) => w.kind === "incompleteRow");
-    expect(warning?.message).toContain("nobody to award it to");
-  });
-
-  it("flags a bonus for a team that is not on the roster", () => {
-    const result = buildFixture({
-      drops: dropsWithBonusCsv([["Team Rocket", "", "", "", "500"]]),
-    });
-
-    expect(result.teams.every((t) => t.bonusPoints === 0)).toBe(true);
-    expect(result.warnings.map((w) => w.kind)).toContain("unknownTeam");
-  });
-});
-
 describe("scoring — bad input never crashes and never scores silently", () => {
   it("skips an unknown RSN and names it in a warning", () => {
     const result = buildFixture({
@@ -306,7 +200,7 @@ describe("scoring — bad input never crashes and never scores silently", () => 
       ]),
     });
 
-    expect(team(result, "Lauren").dropPoints).toBe(80);
+    expect(team(result, "Lauren").totalPoints).toBe(80);
     const warning = result.warnings.find((w) => w.kind === "unknownPlayer");
     expect(warning?.value).toBe("SomeRandomGuy");
     expect(warning?.row).toBe(2);
@@ -317,7 +211,7 @@ describe("scoring — bad input never crashes and never scores silently", () => 
       drops: dropsCsv([["Lauren", "Charzbtw", "Callisto", "Dragon 2h swrod"]]),
     });
 
-    expect(team(result, "Lauren").dropPoints).toBe(0);
+    expect(team(result, "Lauren").totalPoints).toBe(0);
     const warning = result.warnings.find((w) => w.kind === "unknownItem");
     expect(warning?.value).toBe("Callisto — Dragon 2h swrod");
   });
@@ -336,7 +230,7 @@ describe("scoring — bad input never crashes and never scores silently", () => 
     });
 
     // Treasonous ring is a Venenatis item; it must not fall back to that entry.
-    expect(team(result, "Lauren").dropPoints).toBe(0);
+    expect(team(result, "Lauren").totalPoints).toBe(0);
     expect(result.warnings.map((w) => w.kind)).toContain("unknownItem");
   });
 
@@ -345,10 +239,8 @@ describe("scoring — bad input never crashes and never scores silently", () => 
       drops: dropsCsv([["Lauren", "Charzbtw", "Misc.", "Boss Pets"]]),
     });
 
-    // Misc. is a category like any other, so it scores from the catalog into
-    // the drop total. The Bonus column is a separate mechanism entirely.
-    expect(team(result, "Lauren").dropPoints).toBe(50);
-    expect(team(result, "Lauren").bonusPoints).toBe(0);
+    // Misc. is a category like any other, scored from its catalog points.
+    expect(team(result, "Lauren").totalPoints).toBe(50);
     expect(result.warnings).toEqual([]);
   });
 
@@ -357,8 +249,8 @@ describe("scoring — bad input never crashes and never scores silently", () => 
       drops: dropsCsv([["Faedaa", "Charzbtw", "Callisto", "Dragon 2h sword"]]),
     });
 
-    expect(team(result, "Lauren").dropPoints).toBe(60);
-    expect(team(result, "Faedaa").dropPoints).toBe(0);
+    expect(team(result, "Lauren").totalPoints).toBe(60);
+    expect(team(result, "Faedaa").totalPoints).toBe(0);
     expect(result.warnings.map((w) => w.kind)).toContain("teamMismatch");
   });
 
@@ -386,7 +278,7 @@ describe("scoring — bad input never crashes and never scores silently", () => 
       drops: dropsCsv([["Lauren", "Charzbtw", "Callisto", "Voidwaker hilt"]]),
     });
 
-    expect(team(result, "Lauren").dropPoints).toBe(80);
+    expect(team(result, "Lauren").totalPoints).toBe(80);
     expect(result.warnings).toHaveLength(0);
   });
 
@@ -402,7 +294,7 @@ describe("scoring — bad input never crashes and never scores silently", () => 
 
     const result = buildFixture({ drops: csv });
 
-    expect(team(result, "Lauren").dropPoints).toBe(60);
+    expect(team(result, "Lauren").totalPoints).toBe(60);
     // Padding rows whose formula columns still evaluate are not warnings.
     expect(result.warnings).toHaveLength(0);
   });
@@ -432,8 +324,7 @@ describe("scoring — bad input never crashes and never scores silently", () => 
 
     const result = buildFixture({ drops: csv });
 
-    expect(team(result, "Lauren").dropPoints).toBe(60);
-    expect(team(result, "Lauren").bonusPoints).toBe(0);
+    expect(team(result, "Lauren").totalPoints).toBe(60);
   });
 });
 
@@ -443,7 +334,7 @@ describe("scoring — catalog integrity", () => {
       drops: dropsCsv([["Lauren", "Charzbtw", "Team Challenges", "Team Challenge 1st"]]),
     });
 
-    expect(team(result, "Lauren").dropPoints).toBe(100);
+    expect(team(result, "Lauren").totalPoints).toBe(100);
   });
 
   it("uses the first of two duplicate catalog rows", () => {
@@ -457,43 +348,35 @@ describe("scoring — catalog integrity", () => {
       drops: dropsCsv([["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"]]),
     });
 
-    expect(team(result, "Lauren").dropPoints).toBe(60);
+    expect(team(result, "Lauren").totalPoints).toBe(60);
   });
 });
 
-describe("scoring — an item drop still needs a rostered player", () => {
-  it("does not credit an item to the team named on the row when the RSN is unknown", () => {
-    // A bonus may be awarded from the Team column alone, but an item may not:
-    // that would move points on the strength of a hand-typed cell.
+describe("scoring — an unrecognised RSN is still refused", () => {
+  it("does not fall back to the row's Team when the RSN is unknown", () => {
+    // A blank User means a whole-team row and scores for the Team column. A
+    // User that was typed but does not resolve is a typo, and falling back
+    // would hide it while still moving the team's total.
     const result = buildFixture({
-      drops: dropsWithBonusCsv([
-        ["Lauren", "SomeRandomGuy", "Callisto", "Dragon 2h sword", ""],
+      drops: dropsCsv([
+        ["Lauren", "SomeRandomGuy", "Callisto", "Dragon 2h sword"],
       ]),
     });
 
-    expect(team(result, "Lauren").dropPoints).toBe(0);
+    expect(team(result, "Lauren").totalPoints).toBe(0);
     expect(result.warnings.map((w) => w.kind)).toContain("unknownPlayer");
   });
 
-  it("still awards the bonus on that same row", () => {
+  it("names the RSN and the fix in the warning", () => {
     const result = buildFixture({
-      drops: dropsWithBonusCsv([
-        ["Lauren", "SomeRandomGuy", "Callisto", "Dragon 2h sword", "250"],
+      drops: dropsCsv([
+        ["Lauren", "SomeRandomGuy", "Callisto", "Dragon 2h sword"],
       ]),
     });
 
-    expect(team(result, "Lauren").bonusPoints).toBe(250);
-    expect(team(result, "Lauren").dropPoints).toBe(0);
-  });
-
-  it("flags an item row with no User at all", () => {
-    const result = buildFixture({
-      drops: dropsCsv([["Lauren", "", "Callisto", "Dragon 2h sword"]]),
-    });
-
-    expect(team(result, "Lauren").dropPoints).toBe(0);
     const warning = result.warnings.find((w) => w.kind === "unknownPlayer");
-    expect(warning?.message).toContain("no User");
+    expect(warning?.message).toContain("SomeRandomGuy");
+    expect(warning?.message).toContain("roster cell");
   });
 });
 
@@ -609,14 +492,6 @@ describe("scoring — the per-player drop breakdown", () => {
     expect(player(result, "Woox").gpValue).toBe(0);
   });
 
-  it("keeps bonus-only rows out of the drop breakdown", () => {
-    const result = buildFixture({
-      drops: dropsWithBonusCsv([["Lauren", "Charzbtw", "", "", "250"]]),
-    });
-
-    expect(player(result, "Charzbtw").drops).toEqual([]);
-    expect(team(result, "Lauren").bonusPoints).toBe(250);
-  });
 });
 
 describe("scoring — the drop log's User column holding a whole roster cell", () => {
@@ -628,7 +503,7 @@ describe("scoring — the drop log's User column holding a whole roster cell", (
     });
 
     expect(player(result, "Charzbtw").points).toBe(60);
-    expect(team(result, "Lauren").dropPoints).toBe(60);
+    expect(team(result, "Lauren").totalPoints).toBe(60);
     expect(result.warnings).toEqual([]);
   });
 
@@ -693,7 +568,7 @@ describe("scoring — a Price still being calculated by a custom formula", () =>
       ]),
     });
 
-    expect(team(result, "Lauren").dropPoints).toBe(60);
+    expect(team(result, "Lauren").totalPoints).toBe(60);
   });
 
   it("says so once, not once per row", () => {
@@ -766,18 +641,18 @@ describe("scoring — the Infernal cape per-team cap", () => {
 
   it("scores the first cape in full", () => {
     const result = buildFixture({ bingo, drops: capes(1) });
-    expect(team(result, "Lauren").dropPoints).toBe(60);
+    expect(team(result, "Lauren").totalPoints).toBe(60);
   });
 
   it("scores all five capes in full — there is no half tier for a capped item", () => {
     const result = buildFixture({ bingo, drops: capes(5) });
     // 60 x 5
-    expect(team(result, "Lauren").dropPoints).toBe(300);
+    expect(team(result, "Lauren").totalPoints).toBe(300);
   });
 
   it("scores nothing for the sixth cape and beyond", () => {
     const result = buildFixture({ bingo, drops: capes(9) });
-    expect(team(result, "Lauren").dropPoints).toBe(300);
+    expect(team(result, "Lauren").totalPoints).toBe(300);
   });
 
   it("marks the over-cap capes so the breakdown can say why", () => {
@@ -833,8 +708,8 @@ describe("scoring — the Infernal cape per-team cap", () => {
     }
     const result = buildFixture({ bingo, drops: dropsCsv(rows) });
 
-    expect(team(result, "Lauren").dropPoints).toBe(300);
-    expect(team(result, "Faedaa").dropPoints).toBe(300);
+    expect(team(result, "Lauren").totalPoints).toBe(300);
+    expect(team(result, "Faedaa").totalPoints).toBe(300);
   });
 
   it("leaves uncapped items unlimited", () => {
@@ -847,7 +722,7 @@ describe("scoring — the Infernal cape per-team cap", () => {
     const result = buildFixture({ bingo, drops: dropsCsv(rows) });
 
     // 40 + eight at 20: half points keep accruing with no ceiling.
-    expect(team(result, "Lauren").dropPoints).toBe(40 + 8 * 20);
+    expect(team(result, "Lauren").totalPoints).toBe(40 + 8 * 20);
   });
 
   it("counts the first cape as the team's unique and the rest as duplicates", () => {
@@ -869,7 +744,7 @@ describe("scoring — the Infernal cape per-team cap", () => {
 
     const result = buildFixture({ bingo: other, drops: dropsCsv(rows) });
     // Five quivers at 50 each, then nothing.
-    expect(team(result, "Lauren").dropPoints).toBe(250);
+    expect(team(result, "Lauren").totalPoints).toBe(250);
   });
 
   it("matches a drop that does carry the suffix too", () => {
@@ -880,7 +755,7 @@ describe("scoring — the Infernal cape per-team cap", () => {
       ]),
     });
 
-    expect(team(result, "Lauren").dropPoints).toBe(60);
+    expect(team(result, "Lauren").totalPoints).toBe(60);
     expect(result.warnings).toEqual([]);
   });
 
@@ -937,7 +812,7 @@ describe("scoring — team totals do not depend on the order of the drop log", (
 
   it("scores the fixture as expected in its original order", () => {
     // 60 + 30 + 30, then 5 + 5 + 5 + 2.5, then 60 x 5 + 0.
-    expect(baseline.dropPoints).toBe(437.5);
+    expect(baseline.totalPoints).toBe(437.5);
     expect(baseline.uniques).toBe(3);
     expect(baseline.dropCount).toBe(13);
   });
@@ -949,7 +824,7 @@ describe("scoring — team totals do not depend on the order of the drop log", (
     const subset = rows.slice(0, 4);
     const totals = new Set(
       permutations(subset).map(
-        (order) => team(buildFixture({ drops: dropsCsv(order) }), "Lauren").dropPoints,
+        (order) => team(buildFixture({ drops: dropsCsv(order) }), "Lauren").totalPoints,
       ),
     );
     expect([...totals]).toHaveLength(1);
@@ -963,7 +838,7 @@ describe("scoring — team totals do not depend on the order of the drop log", (
     ];
     for (const order of orderings) {
       const scored = team(buildFixture({ drops: dropsCsv(order) }), "Lauren");
-      expect(scored.dropPoints).toBe(baseline.dropPoints);
+      expect(scored.totalPoints).toBe(baseline.totalPoints);
       expect(scored.uniques).toBe(baseline.uniques);
       expect(scored.dropCount).toBe(baseline.dropCount);
     }
@@ -982,7 +857,7 @@ describe("scoring — team totals do not depend on the order of the drop log", (
   });
 });
 
-describe("scoring — Misc. and Team Challenges need no User", () => {
+describe("scoring — a row with no User scores for its team", () => {
   // These are picked from the same dropdown as a boss and score from the same
   // catalog points. The only difference is that a team wins them rather than a
   // person, so the drop log leaves User empty — and a row with no User must
@@ -993,7 +868,7 @@ describe("scoring — Misc. and Team Challenges need no User", () => {
       drops: dropsCsv([["Lauren", "", "Misc.", "Boss Pets"]]),
     });
 
-    expect(team(result, "Lauren").dropPoints).toBe(50);
+    expect(team(result, "Lauren").totalPoints).toBe(50);
     expect(team(result, "Lauren").totalPoints).toBe(50);
     expect(result.warnings).toEqual([]);
   });
@@ -1003,7 +878,7 @@ describe("scoring — Misc. and Team Challenges need no User", () => {
       drops: dropsCsv([["Lauren", "", "Team Challenges", "Team Challenge 1st"]]),
     });
 
-    expect(team(result, "Lauren").dropPoints).toBe(100);
+    expect(team(result, "Lauren").totalPoints).toBe(100);
     expect(result.warnings).toEqual([]);
   });
 
@@ -1014,18 +889,6 @@ describe("scoring — Misc. and Team Challenges need no User", () => {
 
     expect(team(result, "Lauren").dropCount).toBe(1);
     expect(team(result, "Lauren").uniques).toBe(1);
-  });
-
-  it("leaves the Bonus column entirely out of it", () => {
-    // Points come from the catalog, not from Bonus. A row carrying both scores
-    // both — they are separate mechanisms and neither replaces the other.
-    const result = buildFixture({
-      drops: dropsWithBonusCsv([["Lauren", "", "Misc.", "Boss Pets", "25"]]),
-    });
-
-    expect(team(result, "Lauren").dropPoints).toBe(50);
-    expect(team(result, "Lauren").bonusPoints).toBe(25);
-    expect(team(result, "Lauren").totalPoints).toBe(75);
   });
 
   it("credits no player when the row names nobody", () => {
@@ -1057,8 +920,8 @@ describe("scoring — Misc. and Team Challenges need no User", () => {
     });
 
     // Each team's first, so both score full — the limit is per team.
-    expect(team(result, "Lauren").dropPoints).toBe(50);
-    expect(team(result, "Faedaa").dropPoints).toBe(50);
+    expect(team(result, "Lauren").totalPoints).toBe(50);
+    expect(team(result, "Faedaa").totalPoints).toBe(50);
   });
 
   it("still needs a recognisable team, and says so when there is not one", () => {
@@ -1086,7 +949,7 @@ describe("scoring — Misc. and Team Challenges need no User", () => {
       drops: dropsCsv([["Lauren", "", "Misc", "Boss Pets"]]),
     });
 
-    expect(team(result, "Lauren").dropPoints).toBe(50);
+    expect(team(result, "Lauren").totalPoints).toBe(50);
     expect(result.warnings).toEqual([]);
   });
 
@@ -1099,18 +962,19 @@ describe("scoring — Misc. and Team Challenges need no User", () => {
     });
 
     // 50 + 25. Nothing about a team award changes the quantity rules.
-    expect(team(result, "Lauren").dropPoints).toBe(75);
+    expect(team(result, "Lauren").totalPoints).toBe(75);
   });
 
-  it("does not exempt a real boss row from needing a User", () => {
-    // The exemption is scoped to the team-award categories. A boss drop with no
-    // User must still be refused, or a hand-typed Team cell could move points.
+  it("applies the same rule to a boss row with no User", () => {
+    // Nothing here is special-cased by category: any row may omit the User and
+    // score for its team, because an individual challenge and a team one are
+    // logged in the same two categories and only the User cell tells them apart.
     const result = buildFixture({
       drops: dropsCsv([["Lauren", "", "Callisto", "Dragon 2h sword"]]),
     });
 
-    expect(team(result, "Lauren").dropPoints).toBe(0);
-    expect(result.warnings.map((w) => w.kind)).toContain("unknownPlayer");
+    expect(team(result, "Lauren").totalPoints).toBe(60);
+    expect(result.warnings).toEqual([]);
   });
 
   it("adds team awards alongside ordinary drops in one total", () => {
@@ -1123,10 +987,86 @@ describe("scoring — Misc. and Team Challenges need no User", () => {
     });
 
     const scored = team(result, "Lauren");
-    expect(scored.dropPoints).toBe(210);
-    expect(scored.bonusPoints).toBe(0);
     expect(scored.totalPoints).toBe(210);
     // Only the Callisto drop belongs to a player.
     expect(player(result, "Charzbtw").points).toBe(60);
+  });
+});
+
+describe("scoring — a Bonus column in the sheet is ignored", () => {
+  // Column M is a leftover from the sheet this one's layout was copied from.
+  // The event managers confirmed it is unused and hidden, so a number sitting
+  // in it must not quietly become points.
+
+  it("ignores a Bonus value on a drop row", () => {
+    const csv = [
+      "Team,User,Boss,Drop,Bonus",
+      "Lauren,Charzbtw,Callisto,Dragon 2h sword,250",
+    ].join("\n");
+
+    const result = buildFixture({ drops: csv });
+
+    expect(team(result, "Lauren").totalPoints).toBe(60);
+  });
+
+  it("does not score a row that carries nothing but a Bonus", () => {
+    const csv = ["Team,User,Boss,Drop,Bonus", "Lauren,,,,400"].join("\n");
+
+    const result = buildFixture({ drops: csv });
+
+    expect(team(result, "Lauren").totalPoints).toBe(0);
+    // It has no Boss or Drop, so it is an incomplete row like any other.
+    expect(result.warnings.map((w) => w.kind)).toContain("incompleteRow");
+  });
+});
+
+describe("scoring — individual and whole-team rows in one log", () => {
+  // The managers' rule: team challenges are logged for the whole team, and
+  // individual ones name whoever got it. Both shapes appear in the same tab and
+  // the same categories, so the User cell is the only thing distinguishing them.
+
+  it("scores both shapes side by side and splits the attribution", () => {
+    const result = buildFixture({
+      drops: dropsCsv([
+        ["Lauren", "", "Team Challenges", "Team Challenge 1st"],
+        ["Lauren", "Charzbtw", "Misc.", "Boss Pets"],
+      ]),
+    });
+
+    // The team banks both; only the named one reaches a player.
+    expect(team(result, "Lauren").totalPoints).toBe(150);
+    expect(player(result, "Charzbtw").points).toBe(50);
+    expect(result.players.reduce((sum, p) => sum + p.points, 0)).toBe(50);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("counts a whole-team row toward the team's drops and uniques", () => {
+    const result = buildFixture({
+      drops: dropsCsv([["Lauren", "", "Team Challenges", "Team Challenge 1st"]]),
+    });
+
+    expect(team(result, "Lauren").dropCount).toBe(1);
+    expect(team(result, "Lauren").uniques).toBe(1);
+  });
+
+  it("shares one per-team quantity count across both shapes", () => {
+    const result = buildFixture({
+      drops: dropsCsv([
+        ["Lauren", "Charzbtw", "Misc.", "Boss Pets"],
+        ["Lauren", "", "Misc.", "Boss Pets"],
+      ]),
+    });
+
+    // The team-level count does not care who logged it: 50 then half.
+    expect(team(result, "Lauren").totalPoints).toBe(75);
+    expect(player(result, "Charzbtw").points).toBe(50);
+  });
+
+  it("still needs a team when the row names nobody", () => {
+    const result = buildFixture({
+      drops: dropsCsv([["", "", "Misc.", "Boss Pets"]]),
+    });
+
+    expect(result.warnings.map((w) => w.kind)).toContain("unknownTeam");
   });
 });

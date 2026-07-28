@@ -130,7 +130,7 @@ describe("buildPayload", () => {
     const lauren = payload.teams.find((t) => t.name === "Lauren")!;
     expect(lauren.dropCount).toBe(60);
     // Limit of 3: three at 5 points, then 57 at half.
-    expect(lauren.dropPoints).toBe(3 * 5 + 57 * 2.5);
+    expect(lauren.totalPoints).toBe(3 * 5 + 57 * 2.5);
   });
 
   it("never throws on garbage in every tab", () => {

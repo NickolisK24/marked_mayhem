@@ -14,14 +14,14 @@
  *     because the team did receive them.
  *   - Order therefore matters: each team's drops are processed oldest-first so
  *     the first N are the ones that get full credit.
- *   - `Misc.` and `Team Challenges` are ordinary catalog categories, scored from
- *     their catalog points like any boss drop. The one difference is that they
- *     are won by a team rather than a person, so their rows carry no User and
- *     are exempt from the rostered-player requirement. With nobody to
- *     attribute them to they add to the team's total but to no player's.
- *   - Bonus points are a separate mechanism: the drop log's `Bonus` column,
- *     typed in by event managers. They are kept apart from drop points so the
- *     leaderboard can show the split, and both add into the team total.
+ *   - Every row scores for a team. A row that names a User also scores for that
+ *     player; a row with no User scores for the team alone, which is how a team
+ *     challenge or any other whole-team award is logged. A User that was given
+ *     but does not resolve is a typo rather than a team row, so it is reported
+ *     and left unscored instead of being guessed at.
+ *   - `Misc.` and `Team Challenges` are ordinary catalog categories with no
+ *     special handling: some of their rows name a person, some do not, and the
+ *     rule above covers both.
  *   - Player totals use the same arithmetic, attributed to the individual. The
  *     quantity limit is a team-level resource, so a player's drop inherits
  *     whatever multiplier the team-level sequence gave it.
@@ -30,7 +30,6 @@
  */
 
 import { TEAM_COLORS } from "@/config/event";
-import { isTeamAwardCategory } from "./catalog";
 import { catalogKey } from "./text";
 import type {
   Catalog,
@@ -93,8 +92,6 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
       name: team.name,
       captain: team.captain,
       colorIndex: team.colorIndex < TEAM_COLORS.length ? team.colorIndex : -1,
-      dropPoints: 0,
-      bonusPoints: 0,
       totalPoints: 0,
       uniques: 0,
       dropCount: 0,
@@ -126,7 +123,7 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
 
     // The roster is authoritative when the RSN resolves: it is edited once,
     // before the event, while the drop log's Team column is typed on every row.
-    // A bonus row may carry only a team name, with no player at all.
+    // A whole-team row carries only a team name, with no player at all.
     const player = drop.user === "" ? null : roster.resolve(drop.user);
     const rowTeam = drop.team === "" ? null : roster.resolveTeam(drop.team);
     const team = player?.team ?? rowTeam;
@@ -168,31 +165,19 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
       });
     }
 
-    /* --- hand-entered bonus points -------------------------------------- */
-
-    if (drop.bonus !== null) {
-      teamScore.bonusPoints += drop.bonus;
-    }
-
-    /* --- the item, when the row has one --------------------------------- */
-
-    if (drop.boss === "" && drop.drop === "") continue;
-
-    // Misc. and Team Challenges are won by a team, so their rows carry no User
-    // and there is nobody to require. Every other category does need one: a
-    // bonus can be awarded from the Team column alone, but crediting an item
-    // to whichever team the row happens to name would silently move points on
-    // the strength of a hand-typed cell.
-    if (!player && !isTeamAwardCategory(drop.boss)) {
+    // A row with no User at all is scored for the team in the Team column.
+    // Plenty of things are won by a whole team — team challenges, and any award
+    // the managers decide to log at team level — and those rows have nobody to
+    // name. A User that *was* given but does not resolve is a different matter:
+    // that is a typo, and guessing at it would move points silently, so it is
+    // still reported and left unscored.
+    if (!player && drop.user !== "") {
       warnings.push({
         kind: "unknownPlayer",
         tab: dropsTab,
         row: drop.row,
         value: drop.user,
-        message:
-          drop.user === ""
-            ? `"${drop.drop}" has no User, so it could not be credited to a player and was not scored.`
-            : `"${drop.user}" is not on any roster. Add the RSN to the roster cell for that player (separated by a "/") and this drop will score.`,
+        message: `"${drop.user}" is not on any roster. Add the RSN to the roster cell for that player (separated by a "/") and this drop will score.`,
       });
       continue;
     }
@@ -229,7 +214,7 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
     // as the multiplier.
     const isUnique = already === 0;
 
-    teamScore.dropPoints += points;
+    teamScore.totalPoints += points;
     teamScore.dropCount += 1;
     teamUniques.get(team)?.add(entry.key);
 
@@ -257,7 +242,6 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
   const teams = [...teamScores.values()];
   for (const team of teams) {
     team.uniques = teamUniques.get(team.name)?.size ?? 0;
-    team.totalPoints = team.dropPoints + team.bonusPoints;
   }
 
   teams.sort(

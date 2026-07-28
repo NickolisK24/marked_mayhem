@@ -42,7 +42,6 @@ const KIND_LABELS: Record<string, string> = {
   unknownItem: "Unrecognised item",
   unknownTeam: "Unrecognised team",
   bossNotInCatalog: "Unrecognised boss",
-  bonusCategoryInDrops: "Bonus row in the drop log",
   incompleteRow: "Incomplete row",
   teamMismatch: "Team mismatch",
   catalogRowSkipped: "Catalog row skipped",
@@ -50,7 +49,6 @@ const KIND_LABELS: Record<string, string> = {
   catalogKeyMismatch: "Catalog key mismatch",
   unparsedNumber: "Unreadable number",
   pendingPrice: "Price still calculating",
-  unknownBonusType: "Unrecognised bonus type",
   rosterAmbiguousAlias: "Ambiguous roster name",
 };
 

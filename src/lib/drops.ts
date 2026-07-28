@@ -1,15 +1,17 @@
 /**
  * The DROPS tab: rows appended live during the event.
  *
- * Six columns are read — Team, User, Boss, Drop, Price and Bonus — plus an
- * optional Timestamp. The sheet's own Points Earned / Multiplier / Full Points /
- * # Seen / # from Team / # for Full Points columns are deliberately ignored and
+ * Five columns are read — Team, User, Boss, Drop and Price — plus an optional
+ * Timestamp. The sheet's own Points Earned / Multiplier / Full Points / # Seen /
+ * # from Team / # for Full Points columns are deliberately ignored and
  * recomputed from the catalog: their formulas are already partly broken, and a
  * scoring path that reads them cannot be tested.
  *
- * `Bonus` and `Price` are the exceptions. Bonus points are typed in by event
- * managers, and Price is the drop log's own accumulated GP value, so both are
- * read as given rather than recomputed.
+ * `Price` is the exception, being the drop log's own accumulated GP value
+ * rather than a score, so there is nothing to recompute it from.
+ *
+ * The `Bonus` column (column M) is not read: it is a leftover from the sheet
+ * this one's layout was copied from, is unused, and is hidden in the sheet.
  */
 
 import type { SheetTable } from "./csv";
@@ -18,9 +20,6 @@ import { tidy } from "./text";
 import type { RawDrop, Warning } from "./types";
 
 export const DROPS_COLUMNS = ["Team", "User", "Boss", "Drop"] as const;
-
-/** Manually-entered bonus points. Optional; blank on ordinary drop rows. */
-export const DROPS_BONUS_COLUMN = "Bonus";
 
 /**
  * The drop log's own GP value for the item, which the sheet accumulates.
@@ -56,7 +55,6 @@ export function parseDrops(table: SheetTable, tab: string): DropsResult {
     const user = tidy(row.get("User"));
     const boss = tidy(row.get("Boss"));
     const drop = tidy(row.get("Drop"));
-    const bonus = parseNumber(row.get(DROPS_BONUS_COLUMN));
     // Try the named column first, then column H. A fallback rather than an
     // either/or, so a row whose named cell exports blank can still be read
     // positionally.
@@ -73,22 +71,11 @@ export function parseDrops(table: SheetTable, tab: string): DropsResult {
     // The drop log is pre-padded with empty rows whose formula columns still
     // evaluate to something, so blankness is judged on these fields only —
     // otherwise every unused row would raise a warning.
-    if (
-      team === "" &&
-      user === "" &&
-      boss === "" &&
-      drop === "" &&
-      (bonus === null || bonus === 0)
-    ) {
+    if (team === "" && user === "" && boss === "" && drop === "") {
       continue;
     }
 
-    const hasItem = boss !== "" && drop !== "";
-    const hasBonus = bonus !== null && bonus !== 0;
-
-    // A row may be an item drop, a hand-entered bonus, or both. Only a row that
-    // is neither is a mistake.
-    if (!hasItem && !hasBonus) {
+    if (boss === "" || drop === "") {
       const missing = [
         user === "" ? "User" : null,
         boss === "" ? "Boss" : null,
@@ -102,22 +89,11 @@ export function parseDrops(table: SheetTable, tab: string): DropsResult {
         tab,
         row: row.row,
         value: [team, user, boss, drop].filter(Boolean).join(" / "),
-        message: `Row is missing ${missing} and has no bonus points, so it was not scored.`,
+        message: `Row is missing ${missing}, so it was not scored.`,
       });
       continue;
     }
 
-    // A bonus needs a team to award it to, from the row or from the player.
-    if (hasBonus && team === "" && user === "") {
-      warnings.push({
-        kind: "incompleteRow",
-        tab,
-        row: row.row,
-        value: String(bonus),
-        message: `Bonus of ${bonus} has no Team or User, so there is nobody to award it to.`,
-      });
-      continue;
-    }
 
     const timestamp = hasTimestampColumn
       ? parseTimestamp(row.get(DROPS_TIMESTAMP_COLUMN))
@@ -131,7 +107,6 @@ export function parseDrops(table: SheetTable, tab: string): DropsResult {
       boss,
       drop,
       price,
-      bonus: hasBonus ? bonus : null,
       timestamp,
     });
   }
