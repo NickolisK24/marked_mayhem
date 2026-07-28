@@ -1,19 +1,9 @@
-import { BONUS_COLUMNS, parseBonuses } from "@/lib/bonus";
 import { BINGO_ALL_COLUMNS, BINGO_COLUMNS, buildCatalog } from "@/lib/catalog";
 import { parseTable } from "@/lib/csv";
 import { DROPS_COLUMNS, parseDrops } from "@/lib/drops";
 import { buildRoster } from "@/lib/roster";
 import { scoreEvent } from "@/lib/scoring";
 import type { ScoreResult } from "@/lib/types";
-
-export const TABS = { drops: "DROPS", bonus: "BONUS" };
-
-export const BONUS_TYPES = [
-  "Boss Pets",
-  "Jars",
-  "Bounty 1st",
-  "Team Participation",
-];
 
 /**
  * A minimal but realistic catalog. Note the composite key: Dragon 2h sword is
@@ -55,7 +45,6 @@ export function buildFixture(options: {
   bingo?: string;
   teams?: string;
   drops?: string;
-  bonus?: string;
 }): ScoreResult {
   const bingoTable = parseTable(options.bingo ?? BINGO_CSV, BINGO_COLUMNS);
   const { catalog, warnings: catalogWarnings } = buildCatalog(
@@ -76,18 +65,11 @@ export function buildFixture(options: {
     hasTimestamps,
   } = parseDrops(dropsTable, "DROPS");
 
-  const bonusTable = parseTable(
-    options.bonus ?? BONUS_COLUMNS.join(","),
-    BONUS_COLUMNS,
-  );
-
   const result = scoreEvent({
     drops,
     catalog,
     roster,
-    bonuses: parseBonuses(bonusTable),
-    bonusTypes: BONUS_TYPES,
-    tabs: TABS,
+    dropsTab: "DROPS",
     hasTimestamps,
   });
 
@@ -108,6 +90,15 @@ export function dropsCsv(
   extraHeader: string[] = [],
 ): string {
   const header = [...DROPS_COLUMNS, ...extraHeader].join(",");
+  const body = rows.map((row) => row.map(quote).join(","));
+  return [header, ...body].join("\n");
+}
+
+/** Build a DROPS csv with a Bonus column, from `[team, user, boss, drop, bonus]`. */
+export function dropsWithBonusCsv(
+  rows: Array<[string, string, string, string, string]>,
+): string {
+  const header = [...DROPS_COLUMNS, "Bonus"].join(",");
   const body = rows.map((row) => row.map(quote).join(","));
   return [header, ...body].join("\n");
 }

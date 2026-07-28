@@ -7,34 +7,24 @@
  */
 
 import {
-  BONUS_TYPES,
   EVENT_END,
   EVENT_NAME,
   EVENT_START,
-  FEED_LIMIT,
   type TabConfig,
 } from "@/config/event";
-import { BONUS_COLUMNS, parseBonuses } from "./bonus";
 import { BINGO_COLUMNS, buildCatalog } from "./catalog";
 import { parseTable } from "./csv";
 import { DROPS_COLUMNS, parseDrops } from "./drops";
 import { buildRoster } from "./roster";
 import { parseRules } from "./rules";
 import { scoreEvent } from "./scoring";
-import type {
-  BossProgress,
-  EventPayload,
-  RosterTeam,
-  TabError,
-  Warning,
-} from "./types";
+import type { EventPayload, RosterTeam, TabError, Warning } from "./types";
 
 export interface TabTexts {
   drops: string | null;
   bingo: string | null;
   teams: string | null;
   rules: string | null;
-  bonus: string | null;
 }
 
 export function buildPayload(
@@ -109,50 +99,18 @@ export function buildPayload(
   } = parseDrops(dropsTable, tabs.drops);
   warnings.push(...dropWarnings);
 
-  /* --- bonuses ----------------------------------------------------------- */
-
-  const bonusTable = parseTable(texts.bonus ?? "", BONUS_COLUMNS);
-  if (texts.bonus !== null && bonusTable.missingColumns.length > 0) {
-    errors.push({
-      tab: tabs.bonus,
-      problem: `Missing required column${bonusTable.missingColumns.length > 1 ? "s" : ""}: ${bonusTable.missingColumns.join(", ")}.`,
-    });
-  }
-  const bonuses = parseBonuses(bonusTable);
-
   /* --- score ------------------------------------------------------------- */
 
   const scores = scoreEvent({
     drops,
     catalog,
     roster,
-    bonuses,
-    bonusTypes: BONUS_TYPES,
-    tabs: { drops: tabs.drops, bonus: tabs.bonus },
+    dropsTab: tabs.drops,
     hasTimestamps,
   });
   warnings.push(...scores.warnings);
 
   /* --- presentation shapes ----------------------------------------------- */
-
-  const bosses: BossProgress[] = [...catalog.byCategory.entries()]
-    .map(([boss, entries]) => {
-      const items = entries.map((entry) => ({
-        key: entry.key,
-        item: entry.item,
-        points: entry.points,
-        fullPointsLimit: entry.fullPointsLimit,
-        claimedBy: scores.claims.get(entry.key) ?? [],
-      }));
-
-      return {
-        boss,
-        items,
-        totalPoints: items.reduce((sum, item) => sum + item.points, 0),
-        claimedCount: items.filter((item) => item.claimedBy.length > 0).length,
-      };
-    })
-    .sort((a, b) => a.boss.localeCompare(b.boss));
 
   const rosters: RosterTeam[] = roster.teams.map((team) => ({
     name: team.name,
@@ -173,13 +131,6 @@ export function buildPayload(
     eventEnd: EVENT_END,
     teams: scores.teams,
     players: scores.players,
-    feed: scores.feed.slice(0, FEED_LIMIT),
-    bosses,
-    bonusCatalog: catalog.bonusEntries.map((entry) => ({
-      category: entry.category,
-      item: entry.item,
-      points: entry.points,
-    })),
     rules: texts.rules === null ? [] : parseRules(texts.rules),
     rosters,
     warnings,

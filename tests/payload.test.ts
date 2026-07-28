@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildPayload } from "@/lib/payload";
 import type { TabConfig } from "@/config/event";
-import { BONUS_COLUMNS } from "@/lib/bonus";
 import { BINGO_CSV, TEAMS_CSV, dropsCsv } from "./helpers";
 
 const TABS: TabConfig = {
@@ -9,7 +8,6 @@ const TABS: TabConfig = {
   bingo: "BINGO",
   teams: "TEAMS",
   rules: "RULES",
-  bonus: "BONUS",
 };
 
 const NOW = Date.parse("2026-07-27T12:00:00Z");
@@ -23,7 +21,6 @@ function build(overrides: Partial<Parameters<typeof buildPayload>[0]> = {}) {
         ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"],
         ["Faedaa", "MarylandRat", "Venenatis", "Treasonous ring"],
       ]),
-      bonus: [BONUS_COLUMNS.join(","), "Lauren,Boss Pets,50,,pet"].join("\n"),
       rules: "Rules\n1. Be excellent to each other\n\n2. Two accounts allowed",
       ...overrides,
     },
@@ -41,36 +38,13 @@ describe("buildPayload", () => {
     expect(payload.stale).toBe(false);
     expect(payload.teams).toHaveLength(4);
     expect(payload.teams[0]!.name).toBe("Lauren");
-    expect(payload.teams[0]!.totalPoints).toBe(110);
+    expect(payload.teams[0]!.totalPoints).toBe(60);
     expect(payload.rosters).toHaveLength(4);
     expect(payload.tabErrors).toEqual([]);
     // The event window travels in the payload so the header can render all
     // three phases without importing config into a client component.
     expect(payload.eventStart).toBe("2026-07-30T17:00:00-04:00");
     expect(payload.eventEnd).toBe("2026-08-09T17:00:00-04:00");
-  });
-
-  it("groups boss progress by category and marks claims", () => {
-    const payload = build();
-
-    const callisto = payload.bosses.find((b) => b.boss === "Callisto");
-    expect(callisto?.items).toHaveLength(3);
-    expect(callisto?.claimedCount).toBe(1);
-
-    const sword = callisto?.items.find((i) => i.item === "Dragon 2h sword");
-    expect(sword?.claimedBy).toEqual(["Lauren"]);
-    expect(sword?.points).toBe(60);
-
-    const hilt = callisto?.items.find((i) => i.item === "Voidwaker hilt");
-    expect(hilt?.claimedBy).toEqual([]);
-  });
-
-  it("keeps bonus categories out of boss progress", () => {
-    const payload = build();
-
-    expect(payload.bosses.map((b) => b.boss)).not.toContain("Misc.");
-    expect(payload.bosses.map((b) => b.boss)).not.toContain("Team Challenges");
-    expect(payload.bonusCatalog.map((e) => e.item)).toContain("Boss Pets");
   });
 
   it("reads rules line by line, keeping the first row", () => {
@@ -91,8 +65,7 @@ describe("buildPayload", () => {
     });
 
     expect(payload.tabErrors.find((e) => e.tab === "BINGO")).toBeUndefined();
-    const callisto = payload.bosses.find((b) => b.boss === "Callisto");
-    expect(callisto?.items[0]?.fullPointsLimit).toBe(1);
+    expect(payload.teams).toHaveLength(4);
   });
 
   it("names the tab and the column when the catalog loses Points", () => {
@@ -120,10 +93,10 @@ describe("buildPayload", () => {
   });
 
   it("survives every optional tab being unavailable", () => {
-    const payload = build({ drops: null, bonus: null, rules: null });
+    const payload = build({ drops: null, rules: null });
 
     expect(payload.teams).toHaveLength(4);
-    expect(payload.feed).toEqual([]);
+    expect(payload.teams.every((team) => team.totalPoints === 0)).toBe(true);
     expect(payload.rules).toEqual([]);
     // A tab that failed to fetch is reported by the route, not invented here.
     expect(payload.tabErrors).toEqual([]);
@@ -131,7 +104,7 @@ describe("buildPayload", () => {
 
   it("carries fetch errors through untouched", () => {
     const payload = buildPayload(
-      { bingo: BINGO_CSV, teams: TEAMS_CSV, drops: null, bonus: null, rules: null },
+      { bingo: BINGO_CSV, teams: TEAMS_CSV, drops: null, rules: null },
       TABS,
       [{ tab: "DROPS", problem: "Tab not found (HTTP 404)." }],
       NOW,
@@ -143,7 +116,7 @@ describe("buildPayload", () => {
     expect(payload.teams).toHaveLength(4);
   });
 
-  it("caps the feed and orders it newest first", () => {
+  it("scores a long drop log without truncating it", () => {
     const rows = Array.from({ length: 60 }, () =>
       ["Lauren", "Charzbtw", "Callisto", "Any Shard"] as [
         string,
@@ -154,9 +127,10 @@ describe("buildPayload", () => {
     );
     const payload = build({ drops: dropsCsv(rows) });
 
-    expect(payload.feed).toHaveLength(50);
-    expect(payload.feed[0]!.row).toBe(61);
-    expect(payload.feed[0]!.halfPoints).toBe(true);
+    const lauren = payload.teams.find((t) => t.name === "Lauren")!;
+    expect(lauren.dropCount).toBe(60);
+    // Limit of 3: three at 5 points, then 57 at half.
+    expect(lauren.dropPoints).toBe(3 * 5 + 57 * 2.5);
   });
 
   it("never throws on garbage in every tab", () => {
@@ -166,7 +140,6 @@ describe("buildPayload", () => {
           bingo: "#REF!\n#REF!,#REF!",
           teams: "#REF!",
           drops: ",,,,\n#N/A,#N/A",
-          bonus: "#REF!",
           rules: "#REF!",
         },
         TABS,

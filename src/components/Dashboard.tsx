@@ -5,8 +5,6 @@ import { EVENT_NAME, REVALIDATE_SECONDS } from "@/config/event";
 import { teamColorMap } from "@/lib/teamColor";
 import type { EventPayload } from "@/lib/types";
 import { ErrorBanner, WarningsPanel } from "./Banners";
-import { BossProgress } from "./BossProgress";
-import { DropFeed } from "./DropFeed";
 import { Header } from "./Header";
 import { PlayerLeaderboard } from "./PlayerLeaderboard";
 import { Rosters } from "./Rosters";
@@ -16,8 +14,6 @@ import { TeamLeaderboard } from "./TeamLeaderboard";
 
 const VIEWS = [
   { id: "teams", label: "Teams" },
-  { id: "feed", label: "Drops" },
-  { id: "bosses", label: "Bosses" },
   { id: "players", label: "Players" },
   { id: "rules", label: "Rules" },
   { id: "rosters", label: "Rosters" },
@@ -143,16 +139,6 @@ export function Dashboard() {
         ) : (
           <>
             {view === "teams" && <TeamLeaderboard teams={payload.teams} />}
-            {view === "feed" && (
-              <DropFeed
-                feed={payload.feed}
-                colors={colors}
-                ordering={payload.ordering}
-              />
-            )}
-            {view === "bosses" && (
-              <BossProgress bosses={payload.bosses} colors={colors} />
-            )}
             {view === "players" && (
               <PlayerLeaderboard
                 players={payload.players}

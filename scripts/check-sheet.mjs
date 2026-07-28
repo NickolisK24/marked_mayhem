@@ -19,7 +19,6 @@ const DEFAULT_TABS = {
   TAB_BINGO: "BINGO",
   TAB_TEAMS: "TEAMS",
   TAB_RULES: "RULES",
-  TAB_BONUS: "BONUS",
 };
 
 const RESET = "[0m";

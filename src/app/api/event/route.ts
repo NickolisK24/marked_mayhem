@@ -48,16 +48,15 @@ export async function GET() {
     );
   }
 
-  const [drops, bingo, teams, rules, bonus] = await Promise.all([
+  const [drops, bingo, teams, rules] = await Promise.all([
     fetchTab(sheetId, tabs.drops),
     fetchTab(sheetId, tabs.bingo),
     fetchTab(sheetId, tabs.teams),
     fetchTab(sheetId, tabs.rules),
-    fetchTab(sheetId, tabs.bonus),
   ]);
 
   const tabErrors: TabError[] = [];
-  for (const result of [drops, bingo, teams, rules, bonus]) {
+  for (const result of [drops, bingo, teams, rules]) {
     if (!result.ok) tabErrors.push({ tab: result.tab, problem: result.problem });
   }
 
@@ -75,7 +74,6 @@ export async function GET() {
         bingo: bingo.text,
         teams: teams.text,
         rules: rules.ok ? rules.text : null,
-        bonus: bonus.ok ? bonus.text : null,
       },
       tabs,
       tabErrors,
@@ -108,9 +106,6 @@ function staleOr(...tabErrors: TabError[]): EventPayload {
     eventEnd: null,
     teams: [],
     players: [],
-    feed: [],
-    bosses: [],
-    bonusCatalog: [],
     rules: [],
     rosters: [],
     warnings: [],
