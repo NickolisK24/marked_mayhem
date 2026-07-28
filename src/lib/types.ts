@@ -6,6 +6,8 @@
  * a network or a DOM.
  */
 
+import type { Aggregate } from "./catalog";
+
 /* -------------------------------------------------------------------------- */
 /* Warnings                                                                    */
 /* -------------------------------------------------------------------------- */
@@ -45,6 +47,7 @@ export interface TabError {
 /* Catalog (BINGO tab)                                                         */
 /* -------------------------------------------------------------------------- */
 
+
 export interface CatalogEntry {
   /** `${normalize(category)}|${normalize(item)}` — the join key against DROPS. */
   key: string;
@@ -65,6 +68,8 @@ export interface CatalogEntry {
 }
 
 export interface Catalog {
+  /** Entries earned by collecting everything else in their category. */
+  aggregates: Aggregate[];
   /**
    * Every scoreable entry by composite key. Includes the team-award categories
    * (Misc. / Team Challenges), which score like any other entry.
@@ -146,12 +151,20 @@ export interface RawDrop {
  */
 export interface TeamAward {
   id: string;
-  /** Category as typed, e.g. "Team Challenges". */
+  /** Category as typed, e.g. "Team Challenges", or the boss for a derived one. */
   category: string;
   item: string;
   points: number;
-  /** 1-based row in the drop log, so it can be traced back to the sheet. */
-  row: number;
+  /**
+   * 1-based row in the drop log. Null for a derived award, which has no row —
+   * the site worked it out rather than reading it.
+   */
+  row: number | null;
+  /**
+   * True when the site awarded this itself, on seeing the team hold everything
+   * the catalog requires for it, rather than reading it from a logged row.
+   */
+  derived: boolean;
 }
 
 export interface TeamScore {

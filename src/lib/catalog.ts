@@ -12,13 +12,18 @@
  * a mismatch is reported, never acted on.
  */
 
-import { AWARD_CATEGORIES } from "@/config/event";
+import { AWARD_CATEGORIES, ITEM_CAPS } from "@/config/event";
 import type { SheetRow, SheetTable } from "./csv";
 import { parseLimit, parseNumber } from "./numbers";
 import { catalogKey, normalize, squash, stripLimitSuffix, tidy } from "./text";
 import type { Catalog, CatalogEntry, Warning } from "./types";
 
 const awardCategorySet = new Set(AWARD_CATEGORIES.map(normalize));
+
+/** Normalized item name -> its per-team cap, from the event rules. */
+const cappedItems = new Map(
+  ITEM_CAPS.map(({ item, limit }) => [normalize(item), limit]),
+);
 
 /**
  * True for a category holding awards rather than boss drops.
@@ -49,6 +54,70 @@ export const BINGO_ALL_COLUMNS = [
   "Full pts qty limit",
 ] as const;
 
+
+/**
+ * Entries that stand for "the team collected everything else here" rather than
+ * for an item somebody received.
+ *
+ * The sheet works these out with a formula, and a formula fills in a cell — it
+ * cannot append a row to the drop log. So the completion exists in the sheet's
+ * own totals and nowhere the site can see it, which is why the site derives it
+ * instead. See `deriveAggregates` in scoring.ts.
+ */
+const ALL_UNIQUES = /^all uniques\b/;
+
+/** A set completion, itself an aggregate of pieces, e.g. "Completed Torva". */
+const SET_COMPLETION = /^completed\b/;
+
+/**
+ * "Any Shard" and friends. Shards are repeatable filler rather than one of a
+ * boss's uniques, and every catalog entry that mentions them agrees — they are
+ * named "All Uniques (Not Shard)".
+ */
+const SHARD = /\bshard\b/;
+
+/**
+ * What a team must have collected for an aggregate entry to be earned.
+ *
+ * Everything else under the same category, excluding shards and excluding other
+ * aggregates: a set completion is itself derived, so requiring it would mean
+ * one aggregate depending on another that may never have been logged.
+ */
+export interface Aggregate {
+  entry: CatalogEntry;
+  /** Catalog keys, all of which the team must hold. Never empty. */
+  requires: string[];
+}
+
+function buildAggregates(byCategory: Map<string, CatalogEntry[]>): Aggregate[] {
+  const aggregates: Aggregate[] = [];
+
+  for (const entries of byCategory.values()) {
+    for (const entry of entries) {
+      if (!ALL_UNIQUES.test(normalize(entry.item))) continue;
+
+      const requires = entries
+        .filter((other) => {
+          const name = normalize(other.item);
+          return (
+            other.key !== entry.key &&
+            !ALL_UNIQUES.test(name) &&
+            !SET_COMPLETION.test(name) &&
+            !SHARD.test(name)
+          );
+        })
+        .map((other) => other.key);
+
+      // A category with nothing else in it would otherwise award itself the
+      // moment the event started.
+      if (requires.length < 2) continue;
+
+      aggregates.push({ entry, requires });
+    }
+  }
+
+  return aggregates;
+}
 
 export interface CatalogResult {
   catalog: Catalog;
@@ -109,9 +178,14 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
     if (rawItem === "") continue;
 
     // "Infernal Cape (Limit 5)" is the item "Infernal Cape", capped at 5. The
-    // suffix is how the catalog writes a cap; it is not part of the name and
+    // suffix is one way the catalog writes a cap; it is not part of the name and
     // the drop log does not carry it.
-    const { name: item, limit: cap } = stripLimitSuffix(rawItem);
+    const { name: item, limit: suffixCap } = stripLimitSuffix(rawItem);
+
+    // The suffix is cell text and may be edited away by anyone tidying the
+    // sheet, so the configured caps stand behind it. Whichever says so, the item
+    // is capped.
+    const cap = suffixCap ?? cappedItems.get(normalize(item)) ?? null;
 
     if (category === "") {
       warnings.push({
@@ -193,7 +267,12 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
   }
 
   return {
-    catalog: { byKey, entries, byCategory },
+    catalog: {
+      byKey,
+      entries,
+      byCategory,
+      aggregates: buildAggregates(byCategory),
+    },
     warnings,
   };
 }

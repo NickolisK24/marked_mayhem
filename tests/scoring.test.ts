@@ -1183,3 +1183,344 @@ describe("scoring — whole-team challenges listed on the team", () => {
     expect(team(result, "Faedaa").awards).toEqual([]);
   });
 });
+
+describe("scoring — set completions and all-uniques rows", () => {
+  // The sheet works these out itself: when a team collects every piece, it
+  // awards the set. They arrive in the drop log as ordinary catalog entries,
+  // so nothing here special-cases them — these tests exist to pin down that
+  // the value the platform shows matches the catalog, whoever the row names.
+  const BINGO = [
+    "Category,Item,Key,Points,Full pts qty limit",
+    "Nex,Torva Platebody,NexTorva Platebody,400,1",
+    "Nex,Completed Torva,NexCompleted Torva,1200,1",
+    "Armadyl,All Uniques (Not Shard),ArmadylAll Uniques (Not Shard),300,1",
+  ].join("\n");
+
+  it("scores a completed set at its catalog value", () => {
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([["Lauren", "Charzbtw", "Nex", "Completed Torva"]]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(1200);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("scores it the same when the row names nobody", () => {
+    // A set spans several players, so the sheet may well leave User empty.
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([["Lauren", "", "Nex", "Completed Torva"]]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(1200);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("scores an all-uniques row at its catalog value", () => {
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([["Lauren", "", "Armadyl", "All Uniques (Not Shard)"]]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(300);
+  });
+
+  it("counts a set as an item, not an award", () => {
+    // It sits under a boss, so it belongs in the item statistics — unlike a
+    // Misc. or Team Challenges row, which is listed separately instead.
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([["Lauren", "", "Nex", "Completed Torva"]]),
+    });
+
+    const scored = team(result, "Lauren");
+    expect(scored.uniques).toBe(1);
+    expect(scored.dropCount).toBe(1);
+    expect(scored.awards).toEqual([]);
+  });
+
+  it("adds the set on top of the pieces rather than replacing them", () => {
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([
+        ["Lauren", "Charzbtw", "Nex", "Torva Platebody"],
+        ["Lauren", "", "Nex", "Completed Torva"],
+      ]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(1600);
+    expect(player(result, "Charzbtw").points).toBe(400);
+  });
+
+  it("halves a second set like any other repeated item", () => {
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([
+        ["Lauren", "", "Nex", "Completed Torva"],
+        ["Lauren", "", "Nex", "Completed Torva"],
+      ]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(1800);
+  });
+
+  it("flags a set name the catalog does not have", () => {
+    // If the sheet ever renames one, it fails loudly rather than scoring 0.
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([["Lauren", "", "Nex", "Completed Virtus"]]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(0);
+    expect(result.warnings.map((w) => w.kind)).toContain("unknownItem");
+  });
+});
+
+describe("scoring — a cap holds when the catalog name loses its suffix", () => {
+  // The regression this guards. The cap used to be read only from a "(Limit 5)"
+  // suffix on the catalog's item name. That is ordinary cell text: somebody
+  // tidying the sheet removed it, and every cape after the first quietly went
+  // back to half points, with nothing on the site to say so. The cap is an
+  // event rule, so it is configured, and the sheet can no longer switch it off.
+  const PLAIN = [
+    "Category,Item,Key,Points,Full pts qty limit",
+    "Zuk,Infernal Cape,ZukInfernal Cape,60,1",
+    "Fortis Colosseum,Dizana's quiver,Fortis ColosseumDizana's quiver,50,1",
+  ].join("\n");
+
+  const capes = (n: number) =>
+    dropsCsv(
+      Array.from(
+        { length: n },
+        (): [string, string, string, string] => [
+          "Lauren",
+          "Charzbtw",
+          "Zuk",
+          "Infernal Cape",
+        ],
+      ),
+    );
+
+  it("gives all five capes full points with no suffix in the catalog", () => {
+    const result = buildFixture({ bingo: PLAIN, drops: capes(5) });
+
+    expect(team(result, "Lauren").totalPoints).toBe(300);
+  });
+
+  it("scores nothing past the fifth", () => {
+    const result = buildFixture({ bingo: PLAIN, drops: capes(8) });
+
+    expect(team(result, "Lauren").totalPoints).toBe(300);
+  });
+
+  it("marks the over-cap ones in the player breakdown", () => {
+    const result = buildFixture({ bingo: PLAIN, drops: capes(7) });
+
+    const drops = player(result, "Charzbtw").drops;
+    expect(drops.map((d) => d.points)).toEqual([60, 60, 60, 60, 60, 0, 0]);
+    expect(drops.map((d) => d.overCap)).toEqual([
+      false, false, false, false, false, true, true,
+    ]);
+    expect(drops.every((d) => d.cap === 5)).toBe(true);
+  });
+
+  it("caps Dizana's quiver too, apostrophe and all", () => {
+    const result = buildFixture({
+      bingo: PLAIN,
+      drops: dropsCsv(
+        Array.from(
+          { length: 7 },
+          (): [string, string, string, string] => [
+            "Lauren",
+            "Charzbtw",
+            "Fortis Colosseum",
+            "Dizana's quiver",
+          ],
+        ),
+      ),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(250);
+  });
+
+  it("still honours a suffix when the catalog does carry one", () => {
+    const withSuffix = [
+      "Category,Item,Key,Points,Full pts qty limit",
+      "Zuk,Infernal Cape (Limit 5),ZukInfernal Cape (Limit 5),60,1",
+    ].join("\n");
+
+    const result = buildFixture({ bingo: withSuffix, drops: capes(7) });
+
+    expect(team(result, "Lauren").totalPoints).toBe(300);
+  });
+
+  it("leaves an uncapped item on the usual full-then-half rule", () => {
+    const result = buildFixture({
+      drops: dropsCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"],
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"],
+      ]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(90);
+  });
+});
+
+describe("scoring — All Uniques is derived, not logged", () => {
+  // The sheet works this out with a formula. A formula fills in a cell; it
+  // cannot append a row to the drop log, so the completion exists in the
+  // sheet's own totals and in no row the site could ever read. The site works
+  // it out from the catalog instead.
+  const BINGO = [
+    "Category,Item,Key,Points,Full pts qty limit",
+    "Armadyl,Armadyl Chestplate,ArmadylArmadyl Chestplate,40,1",
+    "Armadyl,Armadyl Chainskirt,ArmadylArmadyl Chainskirt,40,1",
+    "Armadyl,Armadyl Helmet,ArmadylArmadyl Helmet,35,1",
+    "Armadyl,Armadyl Hilt,ArmadylArmadyl Hilt,80,1",
+    "Armadyl,Any Shard,ArmadylAny Shard,5,3",
+    "Armadyl,All Uniques (Not Shard),ArmadylAll Uniques (Not Shard),300,1",
+  ].join("\n");
+
+  const piece = (item: string): [string, string, string, string] => [
+    "Lauren",
+    "Charzbtw",
+    "Armadyl",
+    item,
+  ];
+  const ALL_FOUR = [
+    piece("Armadyl Chestplate"),
+    piece("Armadyl Chainskirt"),
+    piece("Armadyl Helmet"),
+    piece("Armadyl Hilt"),
+  ];
+
+  it("awards it once the team holds every non-shard unique", () => {
+    const result = buildFixture({ bingo: BINGO, drops: dropsCsv(ALL_FOUR) });
+
+    // 40 + 40 + 35 + 80 = 195, plus the 300 completion.
+    expect(team(result, "Lauren").totalPoints).toBe(495);
+  });
+
+  it("does not award it while a piece is missing", () => {
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv(ALL_FOUR.slice(0, 3)),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(115);
+    expect(team(result, "Lauren").awards).toEqual([]);
+  });
+
+  it("does not need the shard, which is not a unique", () => {
+    const result = buildFixture({ bingo: BINGO, drops: dropsCsv(ALL_FOUR) });
+
+    expect(team(result, "Lauren").awards).toHaveLength(1);
+  });
+
+  it("lists it on the team, marked as derived", () => {
+    const result = buildFixture({ bingo: BINGO, drops: dropsCsv(ALL_FOUR) });
+
+    const [award] = team(result, "Lauren").awards;
+    expect(award?.item).toBe("All Uniques (Not Shard)");
+    expect(award?.category).toBe("Armadyl");
+    expect(award?.points).toBe(300);
+    expect(award?.derived).toBe(true);
+    expect(award?.row).toBeNull();
+  });
+
+  it("does not pay twice when the row was also logged by hand", () => {
+    // The one way this could double up: managers log it as well.
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([...ALL_FOUR, piece("All Uniques (Not Shard)")]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(495);
+    // The logged row scored it, so nothing was derived on top.
+    expect(team(result, "Lauren").awards).toEqual([]);
+  });
+
+  it("keeps it out of the uniques and drop counts", () => {
+    const result = buildFixture({ bingo: BINGO, drops: dropsCsv(ALL_FOUR) });
+
+    expect(team(result, "Lauren").uniques).toBe(4);
+    expect(team(result, "Lauren").dropCount).toBe(4);
+  });
+
+  it("credits no player for it", () => {
+    const result = buildFixture({ bingo: BINGO, drops: dropsCsv(ALL_FOUR) });
+
+    // Nobody personally completed the set, so it stays a team figure.
+    expect(player(result, "Charzbtw").points).toBe(195);
+    expect(player(result, "Charzbtw").drops).toHaveLength(4);
+  });
+
+  it("counts per team, so one team's pieces do not complete another's", () => {
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([
+        ...ALL_FOUR.slice(0, 2),
+        ["Faedaa", "MarylandRat", "Armadyl", "Armadyl Helmet"],
+        ["Faedaa", "MarylandRat", "Armadyl", "Armadyl Hilt"],
+      ]),
+    });
+
+    expect(team(result, "Lauren").awards).toEqual([]);
+    expect(team(result, "Faedaa").awards).toEqual([]);
+  });
+
+  it("awards it from a duplicate as readily as a first", () => {
+    // "Holds one" is the test, not "scored full points for one".
+    const result = buildFixture({
+      bingo: BINGO,
+      drops: dropsCsv([...ALL_FOUR, piece("Armadyl Hilt")]),
+    });
+
+    expect(team(result, "Lauren").awards).toHaveLength(1);
+  });
+
+  it("does not derive a category whose only other entry is a shard", () => {
+    // Nothing to complete, so awarding it would be free points on day one.
+    const thin = [
+      "Category,Item,Key,Points,Full pts qty limit",
+      "Zuk,Any Shard,ZukAny Shard,5,1",
+      "Zuk,All Uniques (Not Shard),ZukAll Uniques (Not Shard),300,1",
+    ].join("\n");
+
+    const result = buildFixture({
+      bingo: thin,
+      drops: dropsCsv([["Lauren", "Charzbtw", "Zuk", "Any Shard"]]),
+    });
+
+    expect(team(result, "Lauren").awards).toEqual([]);
+    expect(team(result, "Lauren").totalPoints).toBe(5);
+  });
+
+  it("does not require a set completion, which is itself derived elsewhere", () => {
+    // Nex lists "Completed Torva" alongside the pieces. Requiring it would make
+    // one aggregate depend on another that may never have been logged.
+    const nex = [
+      "Category,Item,Key,Points,Full pts qty limit",
+      "Nex,Torva Full Helm,NexTorva Full Helm,400,1",
+      "Nex,Torva Platebody,NexTorva Platebody,400,1",
+      "Nex,Nihil Horn,NexNihil Horn,400,1",
+      "Nex,Completed Torva,NexCompleted Torva,1200,1",
+      "Nex,All Uniques,NexAll Uniques,2400,1",
+    ].join("\n");
+
+    const result = buildFixture({
+      bingo: nex,
+      drops: dropsCsv([
+        ["Lauren", "Charzbtw", "Nex", "Torva Full Helm"],
+        ["Lauren", "Charzbtw", "Nex", "Torva Platebody"],
+        ["Lauren", "Charzbtw", "Nex", "Nihil Horn"],
+      ]),
+    });
+
+    expect(team(result, "Lauren").awards.map((a) => a.item)).toEqual([
+      "All Uniques",
+    ]);
+    expect(team(result, "Lauren").totalPoints).toBe(3600);
+  });
+});
