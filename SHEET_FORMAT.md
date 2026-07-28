@@ -167,15 +167,22 @@ unique would be odd. A whole-team one is listed by name under **Team awards** on
 the team's card instead, which is the only place it can appear: with nobody
 named, no player's breakdown carries it.
 
-### `All Uniques` completes itself
+### `All Uniques` and `Completed ...` complete themselves
 
-You do **not** log an `All Uniques` row. The site awards it the moment a team
-holds every other unique the catalog lists under that boss, and it appears under
-**Team awards** on the team's card marked "completed".
+You do **not** log these rows. The site awards them itself, and they appear under
+**Team awards** on the team's card marked "completed", with the boss named.
 
-Shards do not count toward it, and neither does a `Completed ...` set row, which
-is worked out the same way. If you do log the row by hand it is used as-is and
-nothing is derived on top, so it can never pay twice.
+- **`All Uniques (Not Shard)`** lands once a team holds every other unique the
+  catalog lists under that boss. Shards do not count toward it.
+- **`Completed Torva`** lands once a team holds every piece under that boss whose
+  name mentions Torva — the Full Helm, Platebody and Platelegs. The pieces are
+  read from the catalog rather than written into the site, so **a new set needs
+  no code**: list `Completed Virtus` under Nex with the Virtus pieces beside it
+  and it works the same way.
+
+Neither requires the other, so the order they complete in does not matter. If you
+do log one of these rows by hand it is used as-is and nothing is derived on top,
+so they can never pay twice.
 
 This is derived rather than read because the sheet computes it with a **formula**
 — and a formula fills in a cell, it cannot append a row to this tab. The
