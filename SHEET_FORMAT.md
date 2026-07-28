@@ -179,6 +179,25 @@ position.
 A blank or broken `Price` shows as a dash rather than as 0 GP, so an unpriced
 item is never mistaken for a worthless one.
 
+#### Prices from a custom formula need freezing
+
+Column H is filled by `=OSRSPRICE(...)`, a **custom Apps Script function**.
+Custom functions only run inside an open, signed-in browser session — they do
+**not** run when the site reads the sheet. What the site receives is whatever
+value Sheets happens to have cached, and for anything uncached it receives the
+literal text `Loading...`.
+
+That is why a price can look perfectly fine in the sheet and still show as a
+dash on the site: those two things are reading different results.
+
+The site never guesses a number here, and it says so — the warnings panel
+reports how many rows are still `Loading...`.
+
+**To fix it permanently:** select column H → copy → **Paste special → Values
+only**. That turns each formula into the number it produced, which exports
+reliably from then on. Worth doing once the prices have all filled in, and again
+after a batch of new drops.
+
 ### Everything else in this tab is ignored
 
 `Points Earned`, `# from Team`, `# Seen`, `# for Full Points`, `Full Points` and

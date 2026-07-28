@@ -32,6 +32,20 @@ const SUFFIXES: Record<string, number> = {
   b: 1_000_000_000,
 };
 
+/**
+ * True when a cell is still computing.
+ *
+ * Custom Apps Script functions (the drop log prices its items with one) render
+ * as "Loading..." until they resolve, and they do **not** run at all for an
+ * anonymous CSV export — so this text, not a number, is what the site receives
+ * for any row whose result Sheets has not already cached.
+ */
+export function isPendingCell(raw: string | null | undefined): boolean {
+  // Three dots or a single ellipsis character, depending on how the sheet
+  // renders it.
+  return /^loading\s*(\.{0,3}|…)$/i.test((raw ?? "").trim());
+}
+
 /** True when the raw cell is a spreadsheet error or an explicit blank. */
 export function isErrorCell(raw: string | null | undefined): boolean {
   return ERROR_CELLS.has((raw ?? "").trim().toLowerCase());

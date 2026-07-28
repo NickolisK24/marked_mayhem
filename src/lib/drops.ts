@@ -13,7 +13,7 @@
  */
 
 import type { SheetTable } from "./csv";
-import { parseNumber, parseTimestamp } from "./numbers";
+import { isPendingCell, parseNumber, parseTimestamp } from "./numbers";
 import { tidy } from "./text";
 import type { RawDrop, Warning } from "./types";
 
@@ -49,6 +49,7 @@ export function parseDrops(table: SheetTable, tab: string): DropsResult {
     (h) => h.trim().toLowerCase() === DROPS_TIMESTAMP_COLUMN.toLowerCase(),
   );
   let timestampsSeen = 0;
+  let pendingPrices = 0;
 
   for (const row of table.rows) {
     const team = tidy(row.get("Team"));
@@ -57,12 +58,17 @@ export function parseDrops(table: SheetTable, tab: string): DropsResult {
     const drop = tidy(row.get("Drop"));
     const bonus = parseNumber(row.get(DROPS_BONUS_COLUMN));
     // Try the named column first, then column H. A fallback rather than an
-    // either/or, so a row whose named cell exports blank — which Google's CSV
-    // endpoint does when a cell's type does not match the rest of its column —
-    // can still be read positionally.
-    const price =
-      parseNumber(row.get(DROPS_PRICE_COLUMN)) ??
-      parseNumber(row.cells[DROPS_PRICE_FALLBACK_INDEX] ?? "");
+    // either/or, so a row whose named cell exports blank can still be read
+    // positionally.
+    const priceCells = [
+      row.get(DROPS_PRICE_COLUMN),
+      row.cells[DROPS_PRICE_FALLBACK_INDEX] ?? "",
+    ];
+    const price = priceCells.reduce<number | null>(
+      (found, cell) => found ?? parseNumber(cell),
+      null,
+    );
+    if (price === null && priceCells.some(isPendingCell)) pendingPrices += 1;
 
     // The drop log is pre-padded with empty rows whose formula columns still
     // evaluate to something, so blankness is judged on these fields only —
@@ -127,6 +133,17 @@ export function parseDrops(table: SheetTable, tab: string): DropsResult {
       price,
       bonus: hasBonus ? bonus : null,
       timestamp,
+    });
+  }
+
+  // One warning for the lot rather than one per row: a sheet-wide condition
+  // reported hundreds of times would bury everything else in the panel.
+  if (pendingPrices > 0) {
+    warnings.push({
+      kind: "pendingPrice",
+      tab,
+      value: String(pendingPrices),
+      message: `${pendingPrices} row${pendingPrices === 1 ? "'s" : "s'"} Price is still "Loading…" and shows as — on the site. Custom formulas do not run when the sheet is read, so only values the sheet has already cached come through. Select column H, copy it, then Paste special → Values only to freeze the prices.`,
     });
   }
 
