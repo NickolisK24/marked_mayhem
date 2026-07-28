@@ -616,3 +616,55 @@ describe("scoring — the per-player drop breakdown", () => {
     expect(team(result, "Lauren").bonusPoints).toBe(250);
   });
 });
+
+describe("scoring — the drop log's User column holding a whole roster cell", () => {
+  it("scores a drop logged under the combined cell text", () => {
+    const result = buildFixture({
+      drops: dropsCsv([
+        ["Lauren", "Charzbtw/scuffdcharz", "Callisto", "Dragon 2h sword"],
+      ]),
+    });
+
+    expect(player(result, "Charzbtw").points).toBe(60);
+    expect(team(result, "Lauren").dropPoints).toBe(60);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("pools the combined cell and a bare RSN into one player", () => {
+    const result = buildFixture({
+      drops: dropsCsv([
+        ["Lauren", "Charzbtw/scuffdcharz", "Callisto", "Dragon 2h sword"],
+        ["Lauren", "scuffdcharz", "Callisto", "Voidwaker hilt"],
+      ]),
+    });
+
+    expect(player(result, "Charzbtw").dropCount).toBe(2);
+    expect(player(result, "Charzbtw").points).toBe(140);
+  });
+});
+
+describe("scoring — reading Price when a row's named cell is blank", () => {
+  it("falls back to column H for a row the named column left empty", () => {
+    // Google's CSV endpoint blanks a cell whose type does not match the rest of
+    // its column, so one row can come through empty while its neighbours do not.
+    const csv = [
+      "Team,User,Boss,Drop,Points Earned,# from Team,# Seen,Price",
+      'Lauren,Charzbtw,Callisto,Dragon 2h sword,,,,"40,331,957"',
+      'Lauren,canofeesh,Callisto,Voidwaker hilt,,,,"120,000,000"',
+    ].join("\n");
+
+    const result = buildFixture({ drops: csv });
+    expect(player(result, "Charzbtw").drops[0]!.price).toBe(40_331_957);
+    expect(player(result, "canofeesh").drops[0]!.price).toBe(120_000_000);
+  });
+
+  it("still reports an unreadable price as unknown rather than zero", () => {
+    const result = buildFixture({
+      drops: dropsWithPriceCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword", "#REF!"],
+      ]),
+    });
+
+    expect(player(result, "Charzbtw").drops[0]!.price).toBeNull();
+  });
+});

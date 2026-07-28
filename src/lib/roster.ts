@@ -43,6 +43,7 @@ function makePlayer(
     id: `${normalize(team)}::${normalize(displayName)}`,
     displayName,
     rsns,
+    rosterCell: tidy(cell),
     team,
     ehb: tidy(ehb),
     // Set once the team is assembled — the captain is whoever is listed first.

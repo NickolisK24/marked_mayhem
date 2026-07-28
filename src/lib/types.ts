@@ -79,6 +79,12 @@ export interface Player {
   displayName: string;
   /** Every RSN this player may log drops under. */
   rsns: string[];
+  /**
+   * The roster cell verbatim, e.g. "Charzbtw/scuffdcharz". Drop-log dropdowns
+   * are often sourced from the roster, so the whole cell turns up in the User
+   * column and has to resolve as well as the individual RSNs do.
+   */
+  rosterCell: string;
   team: string;
   /** EHB bracket exactly as typed in the sheet. Empty string when absent. */
   ehb: string;

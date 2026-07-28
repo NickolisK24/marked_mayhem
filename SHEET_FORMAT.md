@@ -246,6 +246,15 @@ cell, separated by `/` or `,`:
 A drop logged under **either** name is credited to that one player, and their
 points are combined. The first name listed is what the site displays.
 
+The **whole cell** also counts as a name. If the drop log's `User` column is a
+dropdown sourced from the roster, it hands back the entire cell — `User` ends up
+reading `Charzbtw/scuffdcharz` rather than one of the two RSNs — and that
+resolves to the same player. So all three of these work:
+
+- `Charzbtw`
+- `scuffdcharz`
+- `Charzbtw/scuffdcharz`
+
 ### Stray spaces
 
 Names like `harmon y` and `Cambrid ge` — with an accidental space inside them —
