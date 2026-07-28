@@ -127,8 +127,6 @@ export interface RawDrop {
   drop: string;
   /** GP value from the drop log's own Price column. Null when blank or broken. */
   price: number | null;
-  /** Hand-entered bonus points on this row. Null on ordinary drop rows. */
-  bonus: number | null;
   /**
    * Epoch ms, when the DROPS tab has a Timestamp column. Null otherwise — the
    * scorer then falls back to sheet row order, which is chronological because
@@ -145,8 +143,6 @@ export interface TeamScore {
   name: string;
   captain: string | null;
   colorIndex: number;
-  dropPoints: number;
-  bonusPoints: number;
   totalPoints: number;
   /** Distinct catalog entries claimed at least once. */
   uniques: number;

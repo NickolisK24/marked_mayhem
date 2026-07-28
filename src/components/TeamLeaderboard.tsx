@@ -17,8 +17,7 @@ export function TeamLeaderboard({ teams }: { teams: TeamScore[] }) {
     <div className="space-y-3">
       {teams.map((team, index) => {
         const color = teamColor(team.colorIndex);
-        const dropShare = (team.dropPoints / leader) * 100;
-        const bonusShare = (team.bonusPoints / leader) * 100;
+        const share = (team.totalPoints / leader) * 100;
 
         return (
           <article key={team.name} className="panel px-4 py-3.5">
@@ -52,36 +51,20 @@ export function TeamLeaderboard({ teams }: { teams: TeamScore[] }) {
               </div>
             </div>
 
-            {/* Drop points and bonus points as one bar, so the split is visible
-                at a glance without reading the numbers. */}
+            {/* Each team's total as a share of the leader's, so the gap at the
+                top is legible without reading the numbers. */}
             <div
               className="mt-3 flex h-2 overflow-hidden rounded-full bg-ink-edge"
               role="img"
-              aria-label={`${formatPoints(team.dropPoints)} drop points, ${formatPoints(team.bonusPoints)} bonus points`}
+              aria-label={`${formatPoints(team.totalPoints)} points`}
             >
               <div
                 className="h-full transition-[width] duration-500"
-                style={{ width: `${dropShare}%`, backgroundColor: color.hex }}
-              />
-              <div
-                className="h-full transition-[width] duration-500"
-                style={{
-                  width: `${bonusShare}%`,
-                  backgroundColor: color.hex,
-                  opacity: 0.45,
-                  backgroundImage:
-                    "repeating-linear-gradient(45deg, rgba(0,0,0,0.35) 0 3px, transparent 3px 6px)",
-                }}
+                style={{ width: `${share}%`, backgroundColor: color.hex }}
               />
             </div>
 
-            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
-              <Stat label="Drop pts" value={formatPoints(team.dropPoints)} />
-              <Stat
-                label="Bonus"
-                value={formatPoints(team.bonusPoints)}
-                muted={team.bonusPoints === 0}
-              />
+            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <Stat label="Uniques" value={formatCount(team.uniques)} />
               <Stat label="Drops" value={formatCount(team.dropCount)} />
             </dl>
@@ -92,25 +75,13 @@ export function TeamLeaderboard({ teams }: { teams: TeamScore[] }) {
   );
 }
 
-function Stat({
-  label,
-  value,
-  muted = false,
-}: {
-  label: string;
-  value: string;
-  muted?: boolean;
-}) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-[0.65rem] tracking-wider text-parchment-faint uppercase">
         {label}
       </dt>
-      <dd
-        className={`tabular-nums ${muted ? "text-parchment-faint" : "text-parchment"}`}
-      >
-        {value}
-      </dd>
+      <dd className="text-parchment tabular-nums">{value}</dd>
     </div>
   );
 }

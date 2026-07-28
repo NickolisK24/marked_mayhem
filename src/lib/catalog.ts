@@ -12,7 +12,6 @@
  * a mismatch is reported, never acted on.
  */
 
-import { TEAM_AWARD_CATEGORIES } from "@/config/event";
 import type { SheetRow, SheetTable } from "./csv";
 import { parseLimit, parseNumber } from "./numbers";
 import { catalogKey, normalize, squash, stripLimitSuffix, tidy } from "./text";
@@ -37,17 +36,6 @@ export const BINGO_ALL_COLUMNS = [
   "Full pts qty limit",
 ] as const;
 
-const teamAwardCategorySet = new Set(TEAM_AWARD_CATEGORIES.map(normalize));
-
-/**
- * True for a category won by a team rather than by a person.
- *
- * These are scored exactly like any other catalog entry; the flag only exempts
- * them from needing a `User` on the drop log row.
- */
-export function isTeamAwardCategory(category: string): boolean {
-  return teamAwardCategorySet.has(normalize(category));
-}
 
 export interface CatalogResult {
   catalog: Catalog;

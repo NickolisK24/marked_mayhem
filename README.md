@@ -123,9 +123,10 @@ Scoring is recomputed from scratch in `src/lib/scoring.ts`. The sheet's own
 `# for Full Points` columns are **not read** — those formulas are partly broken,
 and a scoring path that reads them cannot be tested.
 
-`Bonus` and `Price` (column H) are the exceptions. Bonus points are typed in by
-an event manager, and Price is the drop log's own accumulated GP value; neither
-is a score to recompute, so both are read as given.
+`Price` (column H) is the exception, being the drop log's own accumulated GP
+value rather than a score, so there is nothing to recompute it from. The `Bonus`
+column (column M) is a leftover from the sheet this one's layout was copied
+from; it is unused and hidden, and is not read either.
 
 For each drop, in chronological order within a team:
 
@@ -139,19 +140,18 @@ For each drop, in chronological order within a team:
    60 each, 300 in total, and cape six is worth 0. The suffix is stripped from
    the name before anything is matched or displayed, so the drop log's plain
    `Infernal Cape` still joins to it.
-4. Anything in the row's `Bonus` column is added to that team's bonus points.
-   That column is typed in by event managers, so it is read as given rather
-   than recomputed.
-5. `Misc.` and `Team Challenges` are ordinary catalog categories, scored from
-   their catalog points like any boss drop. Because a team wins them rather
-   than a person, their rows carry no `User` and are exempt from the
-   rostered-player requirement; with nobody named, the team scores and no
-   player does. They are unrelated to the `Bonus` column.
+4. Every row scores for a team. A row naming a `User` also scores for that
+   player; a row with `User` empty scores for the team alone, which is how a
+   whole-team award is logged. `Misc.` and `Team Challenges` are ordinary
+   catalog categories with no special handling — an individual challenge and a
+   team one sit in the same category, and only the `User` cell separates them.
+5. A `User` that is filled in but does not resolve is **not** treated as a
+   team row. It is flagged and left unscored: a blank means "the whole team",
+   whereas a typo is a mistake, and falling back to a hand-typed team name
+   would hide it while still moving the total.
 
-Team totals carry drop points and bonus points separately, and the leaderboard
-shows the split. Player totals cover drops only — a bonus belongs to a team, not
-to an individual. Because the quantity limit is a team-level resource, a player
-who is second for their team gets the half.
+Because the quantity limit is a team-level resource, a player who is second for
+their team gets the half.
 
 ### Drop ordering
 
@@ -216,8 +216,7 @@ tests/format.test.ts    points, relative time and the event-window countdown
 
 The negative fixtures matter as much as the positive ones: missing columns,
 blank rows, `#REF!` cells, comma-formatted numbers, an unknown RSN, an unknown
-item, a bonus with nobody to award it to, a team award in neither the catalog
-nor the `Bonus` column, a team with zero drops, and a
+item, a whole-team row with no team to award it to, a team with zero drops, and a
 duplicate item crossing its quantity limit mid-sequence.
 
 ### Testing without the real sheet
