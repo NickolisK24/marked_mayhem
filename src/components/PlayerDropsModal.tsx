@@ -139,6 +139,11 @@ export function PlayerDropsModal({
                         // scored nothing. Said plainly rather than shown as a
                         // bare 0 that looks like a bug.
                         <span className="text-warn">over the cap</span>
+                      ) : drop.cap !== null && !drop.unique ? (
+                        // A capped item pays full points for all of them, so a
+                        // duplicate here is worth as much as the first. Without
+                        // this the full points next to "duplicate" read as a bug.
+                        <span className="text-gold">within the {drop.cap} cap</span>
                       ) : (
                         <span className={drop.unique ? "text-gold" : undefined}>
                           {drop.unique ? "unique" : "duplicate"}

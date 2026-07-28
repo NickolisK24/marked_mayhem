@@ -122,9 +122,14 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
     const rawPoints = cell(row, "Points", POSITIONAL.points);
 
     const points = parseNumber(rawPoints);
-    // Absent from the live catalog, so every item defaults to full points for
-    // the first one per team.
-    const limit = parseLimit(cell(row, "Full pts qty limit", null), 1);
+    // Absent from the live catalog, so an uncapped item defaults to full points
+    // for the first one per team and half for every one after.
+    const columnLimit = parseLimit(cell(row, "Full pts qty limit", null), 1);
+
+    // A "(Limit N)" item works differently: all N score full points and there
+    // is no half tier — past N the item scores nothing. So N is both the
+    // full-points run and the cap, and it overrides the column.
+    const fullPointsLimit = cap ?? columnLimit;
 
     const entry: CatalogEntry = {
       key: catalogKey(category, item),
@@ -133,7 +138,7 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
       // Points is required to score. Bonus-category rows are reference-only, so
       // a missing value there is harmless and defaults to 0.
       points: points ?? 0,
-      fullPointsLimit: limit,
+      fullPointsLimit,
       scoringCap: cap,
       row: row.row,
     };
