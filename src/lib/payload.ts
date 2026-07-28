@@ -48,7 +48,13 @@ export function buildPayload(
   /* --- catalog (BINGO) --------------------------------------------------- */
 
   const bingoTable = parseTable(texts.bingo ?? "", BINGO_COLUMNS);
-  if (texts.bingo !== null && bingoTable.missingColumns.length > 0) {
+  // A headerless catalog is read by column position instead, so its columns are
+  // not "missing" — reporting them would be a permanent false alarm.
+  if (
+    texts.bingo !== null &&
+    bingoTable.headerFound &&
+    bingoTable.missingColumns.length > 0
+  ) {
     errors.push({
       tab: tabs.bingo,
       problem: `Missing required column${bingoTable.missingColumns.length > 1 ? "s" : ""}: ${bingoTable.missingColumns.join(", ")}.`,
@@ -59,6 +65,20 @@ export function buildPayload(
     tabs.bingo,
   );
   warnings.push(...catalogWarnings);
+
+  if (texts.bingo !== null && catalog.entries.length === 0) {
+    errors.push({
+      tab: tabs.bingo,
+      problem:
+        "No scoreable items could be read. Expected a boss name on its own row, then that boss's items beneath it with their points.",
+    });
+  }
+
+  // The live catalog carries no prices, so the GP columns are hidden rather
+  // than showing a confident 0 for every team.
+  const hasPrices = catalog.entries.some(
+    (entry) => entry.price !== null && entry.price > 0,
+  );
 
   /* --- roster (TEAMS) ---------------------------------------------------- */
 
@@ -170,6 +190,7 @@ export function buildPayload(
     warnings,
     tabErrors: errors,
     ordering: scores.ordering,
+    hasPrices,
     stale: false,
   };
 }

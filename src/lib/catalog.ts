@@ -64,12 +64,27 @@ function sectionHeading(row: SheetRow): string | null {
   return filled.length === 1 ? filled[0]! : null;
 }
 
+/**
+ * Column positions used when the tab has no header row.
+ *
+ * The live catalog is laid out this way: a title row, per-team scoreboard
+ * columns to the right, and the item data purely positional underneath —
+ * A for the boss heading, B for the item, C for its points.
+ */
+const POSITIONAL = { category: 0, item: 1, points: 2 } as const;
+
 export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
   const warnings: Warning[] = [];
   const byKey = new Map<string, CatalogEntry>();
   const entries: CatalogEntry[] = [];
   const byCategory = new Map<string, CatalogEntry[]>();
   const bonusEntries: CatalogEntry[] = [];
+
+  // Named columns when the tab has a header, column positions when it does not.
+  const cell = (row: SheetRow, column: string, at: number | null): string => {
+    if (table.headerFound && row.has(column)) return tidy(row.get(column));
+    return at === null ? "" : tidy(row.cells[at] ?? "");
+  };
 
   /** The boss whose section we are currently inside. */
   let section = "";
@@ -83,8 +98,8 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
 
     // An explicit Category on the row wins; otherwise the row belongs to the
     // section it sits under.
-    const category = tidy(row.get("Category")) || section;
-    const item = tidy(row.get("Item"));
+    const category = cell(row, "Category", POSITIONAL.category) || section;
+    const item = cell(row, "Item", POSITIONAL.item);
 
     if (item === "") continue;
 
@@ -99,9 +114,14 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
       continue;
     }
 
-    const price = parseNumber(row.get("Price"));
-    const points = parseNumber(row.get("Points"));
-    const limit = parseLimit(row.get("Full pts qty limit"), 1);
+    const rawPrice = cell(row, "Price", null);
+    const rawPoints = cell(row, "Points", POSITIONAL.points);
+
+    const price = parseNumber(rawPrice);
+    const points = parseNumber(rawPoints);
+    // Absent from the live catalog, so every item defaults to full points for
+    // the first one per team.
+    const limit = parseLimit(cell(row, "Full pts qty limit", null), 1);
 
     const entry: CatalogEntry = {
       key: catalogKey(category, item),
@@ -126,17 +146,17 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
         tab,
         row: row.row,
         value: `${category} — ${item}`,
-        message: `Points could not be read ("${row.get("Points")}"), so this item cannot be scored and was skipped.`,
+        message: `Points could not be read ("${rawPoints}"), so this item cannot be scored and was skipped.`,
       });
       continue;
     }
 
-    if (price === null && row.get("Price") !== "") {
+    if (price === null && rawPrice !== "") {
       warnings.push({
         kind: "unparsedNumber",
         tab,
         row: row.row,
-        value: row.get("Price"),
+        value: rawPrice,
         message: `Price for ${category} — ${item} could not be read; it counts as 0 GP.`,
       });
     }
@@ -155,7 +175,7 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
 
     // Verification only: the sheet's Key should be Category+Item, but its exact
     // formatting is not depended on.
-    const sheetKey = row.get("Key");
+    const sheetKey = cell(row, "Key", null);
     if (sheetKey !== "" && squash(sheetKey) !== squash(category + item)) {
       warnings.push({
         kind: "catalogKeyMismatch",

@@ -11,10 +11,12 @@ export function DropFeed({
   feed,
   colors,
   ordering,
+  hasPrices,
 }: {
   feed: FeedEntry[];
   colors: Map<string, TeamColor>;
   ordering: "timestamp" | "rowOrder";
+  hasPrices: boolean;
 }) {
   // Relative times are computed after mount for the same hydration reason as
   // the countdown, and re-tick once a minute.
@@ -72,7 +74,9 @@ export function DropFeed({
                   </p>
                   <p className="text-xs text-parchment-faint">
                     {entry.boss}
-                    {entry.gpValue > 0 && ` · ${formatGp(entry.gpValue)}`}
+                    {hasPrices &&
+                      entry.gpValue > 0 &&
+                      ` · ${formatGp(entry.gpValue)}`}
                   </p>
                 </div>
 

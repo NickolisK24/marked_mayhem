@@ -15,9 +15,11 @@ import type { BossProgress as BossProgressData } from "@/lib/types";
 export function BossProgress({
   bosses,
   colors,
+  hasPrices,
 }: {
   bosses: BossProgressData[];
   colors: Map<string, TeamColor>;
+  hasPrices: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [openBosses, setOpenBosses] = useState<Set<string>>(new Set());
@@ -149,7 +151,8 @@ export function BossProgress({
                           {formatPoints(item.points)} pts
                           {item.fullPointsLimit > 1 &&
                             ` · full points for first ${item.fullPointsLimit}`}
-                          {item.price !== null &&
+                          {hasPrices &&
+                            item.price !== null &&
                             item.price > 0 &&
                             ` · ${formatGp(item.price)}`}
                         </p>

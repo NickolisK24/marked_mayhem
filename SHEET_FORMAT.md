@@ -46,6 +46,22 @@ this tab, it cannot score.
 | `Points` | **yes** | Base points. **A row with an unreadable `Points` cannot be scored and is skipped.** |
 | `Full pts qty limit` | no | How many of this item, per team, score full points. Defaults to 1. |
 
+### There is no header row
+
+The live tab has no `Category` / `Item` / `Points` header. Row 1 is the sheet
+title plus the per-team scoreboard columns, rows 2-4 are running totals, and the
+item data below is read **by column position**:
+
+| Column | Holds |
+| --- | --- |
+| **A** | the boss name, on its own row, introducing a section |
+| **B** | the item name |
+| **C** | the item's points |
+| D onward | the sheet's own per-team counters — **not read by the site** |
+
+If a header row is added later it will be found and used instead, so either
+layout works.
+
 ### The tab is read in sections
 
 The catalog is organised as a row holding just the boss name, followed by that

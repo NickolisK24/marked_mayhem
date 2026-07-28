@@ -10,10 +10,12 @@ export function PlayerLeaderboard({
   players,
   teams,
   colors,
+  hasPrices,
 }: {
   players: PlayerScore[];
   teams: string[];
   colors: Map<string, TeamColor>;
+  hasPrices: boolean;
 }) {
   const [filter, setFilter] = useState<string | null>(null);
 
@@ -77,7 +79,9 @@ export function PlayerLeaderboard({
                     {player.team}
                     {player.dropCount > 0 &&
                       ` · ${formatCount(player.dropCount)} drop${player.dropCount === 1 ? "" : "s"}`}
-                    {player.gpValue > 0 && ` · ${formatGp(player.gpValue)}`}
+                    {hasPrices &&
+                      player.gpValue > 0 &&
+                      ` · ${formatGp(player.gpValue)}`}
                   </p>
                 </div>
 

@@ -87,6 +87,11 @@ export interface SheetTable {
   rows: SheetRow[];
   /** Requested columns that were not present in the header. */
   missingColumns: string[];
+  /**
+   * False when no header row could be identified at all. Such a tab is laid out
+   * by column position instead, and every row is data.
+   */
+  headerFound: boolean;
 }
 
 /**
@@ -117,8 +122,9 @@ const HEADER_SEARCH_DEPTH = 15;
 function findHeaderRow(
   rows: string[][],
   requiredColumns: readonly string[],
-): number {
-  if (requiredColumns.length === 0) return 0;
+): { index: number; found: boolean } {
+  // With nothing to match against, row 1 is the header by convention.
+  if (requiredColumns.length === 0) return { index: 0, found: true };
 
   const wanted = new Set(requiredColumns.map(normalize));
   let bestIndex = 0;
@@ -137,10 +143,16 @@ function findHeaderRow(
     }
   }
 
-  // One incidental match is not a header — a data row can easily contain a word
-  // that happens to be a column name.
-  const threshold = Math.min(2, wanted.size);
-  return bestScore >= threshold ? bestIndex : 0;
+  // A single exact match is enough. Column names like "Item" or "Points" do not
+  // occur as cell *values* in these tabs, and demanding two would misread a tab
+  // that has a header but has lost one of its columns as having no header at
+  // all — which would silently switch to positional reading instead of
+  // reporting the missing column.
+  if (bestScore >= 1) return { index: bestIndex, found: true };
+
+  // No header at all. Some tabs are laid out purely by position, so the caller
+  // is told rather than having row 1 silently eaten as a header it is not.
+  return { index: 0, found: false };
 }
 
 /**
@@ -157,11 +169,19 @@ export function toTable(
   requiredColumns: readonly string[] = [],
 ): SheetTable {
   if (rows.length === 0) {
-    return { header: [], rows: [], missingColumns: [...requiredColumns] };
+    return {
+      header: [],
+      rows: [],
+      missingColumns: [...requiredColumns],
+      headerFound: false,
+    };
   }
 
-  const headerIndex = findHeaderRow(rows, requiredColumns);
-  const header = rows[headerIndex]!.map((cell) => cell.trim());
+  const { index: headerIndex, found: headerFound } = findHeaderRow(
+    rows,
+    requiredColumns,
+  );
+  const header = headerFound ? rows[headerIndex]!.map((c) => c.trim()) : [];
   const index = new Map<string, number>();
   header.forEach((name, i) => {
     const key = normalize(name);
@@ -174,7 +194,9 @@ export function toTable(
   );
 
   const dataRows: SheetRow[] = [];
-  for (let i = headerIndex + 1; i < rows.length; i += 1) {
+  // A tab with no header row has no row to skip — row 1 is already data.
+  const firstDataRow = headerFound ? headerIndex + 1 : 0;
+  for (let i = firstDataRow; i < rows.length; i += 1) {
     const cells = rows[i]!;
     if (isBlankRow(cells)) continue;
 
@@ -193,7 +215,7 @@ export function toTable(
     });
   }
 
-  return { header, rows: dataRows, missingColumns };
+  return { header, rows: dataRows, missingColumns, headerFound };
 }
 
 /** Convenience: parse text straight into a table. */

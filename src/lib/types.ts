@@ -255,6 +255,11 @@ export interface EventPayload {
   warnings: Warning[];
   tabErrors: TabError[];
   ordering: "timestamp" | "rowOrder";
+  /**
+   * False when the item catalog carries no prices, in which case the UI hides
+   * GP figures instead of showing a confident zero.
+   */
+  hasPrices: boolean;
   /** True when this payload is a cached snapshot because a refresh failed. */
   stale: boolean;
 }
