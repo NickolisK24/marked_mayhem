@@ -139,14 +139,32 @@ export interface RawDrop {
 /* Scoring output                                                              */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * An award the whole team completed — a `Misc.` or `Team Challenges` row logged
+ * with no `User`. Listed on the team card, because with nobody named there is
+ * no player breakdown for it to appear in.
+ */
+export interface TeamAward {
+  id: string;
+  /** Category as typed, e.g. "Team Challenges". */
+  category: string;
+  item: string;
+  points: number;
+  /** 1-based row in the drop log, so it can be traced back to the sheet. */
+  row: number;
+}
+
 export interface TeamScore {
   name: string;
   captain: string | null;
   colorIndex: number;
   totalPoints: number;
-  /** Distinct catalog entries claimed at least once. */
+  /** Distinct catalog **items** claimed at least once; awards are excluded. */
   uniques: number;
+  /** Item drops logged; awards are excluded, being listed separately. */
   dropCount: number;
+  /** Whole-team awards, oldest first. */
+  awards: TeamAward[];
 }
 
 /** One scored item, as listed in a player's drop breakdown. */

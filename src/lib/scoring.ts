@@ -19,9 +19,12 @@
  *     challenge or any other whole-team award is logged. A User that was given
  *     but does not resolve is a typo rather than a team row, so it is reported
  *     and left unscored instead of being guessed at.
- *   - `Misc.` and `Team Challenges` are ordinary catalog categories with no
- *     special handling: some of their rows name a person, some do not, and the
- *     rule above covers both.
+ *   - `Misc.` and `Team Challenges` score with no special handling: some of
+ *     their rows name a person, some do not, and the rule above covers both.
+ *     They are kept out of the team's uniques and drop counts, though, being
+ *     awards rather than items, and a whole-team one is collected onto the team
+ *     so the card can list it — otherwise it would appear nowhere at all, since
+ *     there is no player breakdown to carry it.
  *   - Player totals use the same arithmetic, attributed to the individual. The
  *     quantity limit is a team-level resource, so a player's drop inherits
  *     whatever multiplier the team-level sequence gave it.
@@ -30,6 +33,7 @@
  */
 
 import { TEAM_COLORS } from "@/config/event";
+import { isAwardCategory } from "./catalog";
 import { catalogKey } from "./text";
 import type {
   Catalog,
@@ -95,6 +99,7 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
       totalPoints: 0,
       uniques: 0,
       dropCount: 0,
+      awards: [],
     });
     teamUniques.set(team.name, new Set());
   }
@@ -215,8 +220,25 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
     const isUnique = already === 0;
 
     teamScore.totalPoints += points;
-    teamScore.dropCount += 1;
-    teamUniques.get(team)?.add(entry.key);
+
+    // An award is not an item drop: it is neither a unique nor something the
+    // team "got", so it stays out of both counters and is listed on its own.
+    // A whole-team one has no player breakdown to appear in, so the card is the
+    // only place it can be seen at all.
+    if (isAwardCategory(entry.category)) {
+      if (!player) {
+        teamScore.awards.push({
+          id: `${drop.row}-${entry.key}`,
+          category: entry.category,
+          item: entry.item,
+          points,
+          row: drop.row,
+        });
+      }
+    } else {
+      teamScore.dropCount += 1;
+      teamUniques.get(team)?.add(entry.key);
+    }
 
     if (playerScore) {
       playerScore.points += points;

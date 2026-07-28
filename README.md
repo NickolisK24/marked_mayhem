@@ -150,6 +150,11 @@ For each drop, in chronological order within a team:
    whereas a typo is a mistake, and falling back to a hand-typed team name
    would hide it while still moving the total.
 
+Awards score into the team total like anything else, but are excluded from its
+uniques and drop counts — they are not items, and "Most Team Uniques" counting
+as a unique reads as a bug. A whole-team one is listed by name on the team card
+instead, since with no player named there is no drop breakdown to carry it.
+
 Because the quantity limit is a team-level resource, a player who is second for
 their team gets the half.
 
