@@ -13,12 +13,23 @@
  */
 
 import { BONUS_CATEGORIES } from "@/config/event";
-import type { SheetTable } from "./csv";
+import type { SheetRow, SheetTable } from "./csv";
 import { parseLimit, parseNumber } from "./numbers";
 import { catalogKey, normalize, squash, tidy } from "./text";
 import type { Catalog, CatalogEntry, Warning } from "./types";
 
-export const BINGO_COLUMNS = [
+/**
+ * Columns the catalog cannot work without.
+ *
+ * `Category` is deliberately not required. The tab is laid out in sections — a
+ * row holding just the boss name, then that boss's items beneath it — so most
+ * item rows have no category of their own and inherit the section they sit
+ * under. See `buildCatalog`.
+ */
+export const BINGO_COLUMNS = ["Item", "Points"] as const;
+
+/** Every column the catalog reads, required or not. Used by the docs and tests. */
+export const BINGO_ALL_COLUMNS = [
   "Category",
   "Item",
   "Key",
@@ -39,6 +50,20 @@ export interface CatalogResult {
   warnings: Warning[];
 }
 
+/**
+ * True for a row that names a section rather than listing an item.
+ *
+ * The catalog is organised as `Armadyl` on its own row, then Armadyl
+ * Chestplate / Chainskirt / Helmet / Hilt / Any Shard / All Uniques beneath it.
+ * A section header therefore has exactly one non-empty cell, wherever in the
+ * row it sits — a real item row always carries at least an item and a points
+ * value, so this can never swallow one.
+ */
+function sectionHeading(row: SheetRow): string | null {
+  const filled = row.cells.map(tidy).filter((cell) => cell !== "");
+  return filled.length === 1 ? filled[0]! : null;
+}
+
 export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
   const warnings: Warning[] = [];
   const byKey = new Map<string, CatalogEntry>();
@@ -46,21 +71,30 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
   const byCategory = new Map<string, CatalogEntry[]>();
   const bonusEntries: CatalogEntry[] = [];
 
+  /** The boss whose section we are currently inside. */
+  let section = "";
+
   for (const row of table.rows) {
-    const category = tidy(row.get("Category"));
+    const heading = sectionHeading(row);
+    if (heading !== null) {
+      section = heading;
+      continue;
+    }
+
+    // An explicit Category on the row wins; otherwise the row belongs to the
+    // section it sits under.
+    const category = tidy(row.get("Category")) || section;
     const item = tidy(row.get("Item"));
 
-    if (category === "" || item === "") {
-      // A partially-filled catalog row is a real mistake, unlike a blank one.
+    if (item === "") continue;
+
+    if (category === "") {
       warnings.push({
         kind: "catalogRowSkipped",
         tab,
         row: row.row,
-        value: category || item,
-        message:
-          category === "" && item === ""
-            ? "Row has no Category or Item and was skipped."
-            : `Row is missing its ${category === "" ? "Category" : "Item"} and was skipped.`,
+        value: item,
+        message: `"${item}" does not sit under any boss heading and has no Category, so it cannot be scored.`,
       });
       continue;
     }

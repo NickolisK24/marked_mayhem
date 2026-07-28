@@ -39,12 +39,40 @@ this tab, it cannot score.
 
 | Column | Required | Notes |
 | --- | --- | --- |
-| `Category` | yes | The boss name. This is half of the join key — see below. |
-| `Item` | yes | The item name. Must match the drop log exactly. |
+| `Category` | no | The boss name. Usually only filled on the section heading row — see below. |
+| `Item` | **yes** | The item name. Must match the drop log exactly. |
 | `Key` | no | `Category` + `Item`. **Not used for scoring** — see below. |
 | `Price` | no | GP value. Missing or broken counts as 0 GP; the points still score. |
-| `Points` | yes | Base points. **A row with an unreadable `Points` cannot be scored and is skipped.** |
+| `Points` | **yes** | Base points. **A row with an unreadable `Points` cannot be scored and is skipped.** |
 | `Full pts qty limit` | no | How many of this item, per team, score full points. Defaults to 1. |
+
+### The tab is read in sections
+
+The catalog is organised as a row holding just the boss name, followed by that
+boss's items:
+
+|  | Category | Item | Price | Points | Full pts qty limit |
+| --- | --- | --- | --- | --- | --- |
+| | **Armadyl** | | | | |
+| | | Armadyl Chestplate | 27,000,000 | 40 | 1 |
+| | | Armadyl Hilt | 120,000,000 | 80 | 1 |
+| | | Any Shard | 1,000,000 | 5 | 3 |
+| | | All Uniques (not shard) | 190,000,000 | 100 | 1 |
+| | **Callisto** | | | | |
+| | | Dragon 2h sword | 40,331,957 | 60 | 1 |
+
+Every item **inherits the boss from the heading above it**. A heading row is
+recognised by having exactly one filled cell — a real item row always has at
+least an item name and a points value, so a heading can never be mistaken for
+an item or vice versa. It does not matter which column the boss name sits in.
+
+A flat layout, with the boss repeated in `Category` on every row, also works.
+If a row has its own `Category`, that wins over the heading above it.
+
+An item that sits above the first heading and has no `Category` of its own
+cannot be placed under a boss, so it is skipped and flagged.
+
+The header row does not have to be row 1 — a title or a note above it is fine.
 
 ### The join key is `Category` + `Item`, not `Item`
 

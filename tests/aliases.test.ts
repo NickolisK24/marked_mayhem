@@ -152,18 +152,38 @@ describe("roster parsing", () => {
     expect(r.resolve("scuffdcharz")?.ehb).toBe("500-999");
   });
 
-  it("identifies captains by name", () => {
+  it("treats the first player listed under a team as its captain", () => {
     const { roster: r } = roster();
     expect(r.teams.find((t) => t.name === "Lauren")?.captain).toBe("Lauren");
     expect(r.resolve("Lauren")?.isCaptain).toBe(true);
     expect(r.resolve("Charzbtw")?.isCaptain).toBe(false);
   });
 
-  it("identifies a captain whose roster name has a stray space", () => {
-    // The sheet says "harmon y"; the captain list says "harmony".
-    const { roster: r } = roster();
-    expect(r.resolve("harmony")?.isCaptain).toBe(true);
-    expect(r.teams.find((t) => t.name === "harmony")?.captain).toBe("harmon y");
+  it("does not rely on the captain sharing the team's name", () => {
+    // The real sheet's teams are named after captains whose RSNs are different:
+    // Team Lauren is captained by "smol tiddies".
+    const csv = [
+      "Team Lauren,EHB,Team Faedaa,EHB",
+      "smol tiddies,1000+,IM Faedaa,1000+",
+      "Charzbtw/scuffdcharz,500-999,MarylandRat,500-999",
+    ].join("\n");
+
+    const { roster: r } = roster(csv);
+    expect(r.teams.find((t) => t.name === "Lauren")?.captain).toBe("smol tiddies");
+    expect(r.teams.find((t) => t.name === "Faedaa")?.captain).toBe("IM Faedaa");
+    expect(r.resolve("smol tiddies")?.isCaptain).toBe(true);
+    expect(r.resolve("Charzbtw")?.isCaptain).toBe(false);
+  });
+
+  it("picks the captain by position in the long layout too", () => {
+    const csv = [
+      "Team,Player,EHB Bracket",
+      "Lauren,Oops Im Main,1000+",
+      "Lauren,Charzbtw,500-999",
+    ].join("\n");
+
+    const { roster: r } = roster(csv);
+    expect(r.teams[0]?.captain).toBe("Oops Im Main");
   });
 
   it("resolves team names case-insensitively", () => {

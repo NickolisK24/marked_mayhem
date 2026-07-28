@@ -36,9 +36,6 @@ export const FALLBACK_TEAM_COLOR = {
   soft: "rgba(148, 163, 184, 0.16)",
 };
 
-/** Captains, used to badge the roster. Matched case-insensitively. */
-export const CAPTAINS = ["Lauren", "Faedaa", "Oops", "harmony"];
-
 /**
  * BINGO categories that are NOT bosses. These hold manually-awarded bonuses and
  * are excluded from the drop-join path entirely — a DROPS row referencing one is

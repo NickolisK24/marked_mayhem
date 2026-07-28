@@ -9,6 +9,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "check-sheet": "node scripts/check-sheet.mjs",
+    "dump-tab": "node scripts/dump-tab.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

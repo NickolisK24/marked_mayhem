@@ -103,6 +103,46 @@ export function looksLikeCsv(text: string): boolean {
   return true;
 }
 
+/** How far down a tab to look for the header row. */
+const HEADER_SEARCH_DEPTH = 15;
+
+/**
+ * Find the header row.
+ *
+ * Usually row 1, but a tab with a title or a note above its headers is common
+ * enough that assuming row 1 turns a cosmetic edit into a site-wide outage. The
+ * row matching the most required columns wins; ties go to the earliest row, and
+ * a tab with no required columns declared keeps the old row-1 behaviour.
+ */
+function findHeaderRow(
+  rows: string[][],
+  requiredColumns: readonly string[],
+): number {
+  if (requiredColumns.length === 0) return 0;
+
+  const wanted = new Set(requiredColumns.map(normalize));
+  let bestIndex = 0;
+  let bestScore = 0;
+
+  const depth = Math.min(rows.length, HEADER_SEARCH_DEPTH);
+  for (let i = 0; i < depth; i += 1) {
+    const seen = new Set<string>();
+    for (const cell of rows[i]!) {
+      const key = normalize(cell);
+      if (wanted.has(key)) seen.add(key);
+    }
+    if (seen.size > bestScore) {
+      bestScore = seen.size;
+      bestIndex = i;
+    }
+  }
+
+  // One incidental match is not a header — a data row can easily contain a word
+  // that happens to be a column name.
+  const threshold = Math.min(2, wanted.size);
+  return bestScore >= threshold ? bestIndex : 0;
+}
+
 /**
  * Map parsed rows onto their header, matching column names after normalization
  * so "Full pts qty limit", "Full Pts Qty Limit" and " full pts qty limit " are
@@ -120,7 +160,8 @@ export function toTable(
     return { header: [], rows: [], missingColumns: [...requiredColumns] };
   }
 
-  const header = rows[0]!.map((cell) => cell.trim());
+  const headerIndex = findHeaderRow(rows, requiredColumns);
+  const header = rows[headerIndex]!.map((cell) => cell.trim());
   const index = new Map<string, number>();
   header.forEach((name, i) => {
     const key = normalize(name);
@@ -133,12 +174,12 @@ export function toTable(
   );
 
   const dataRows: SheetRow[] = [];
-  for (let i = 1; i < rows.length; i += 1) {
+  for (let i = headerIndex + 1; i < rows.length; i += 1) {
     const cells = rows[i]!;
     if (isBlankRow(cells)) continue;
 
     dataRows.push({
-      // +1 for the header, +1 because spreadsheet rows are 1-based.
+      // Spreadsheet rows are 1-based, so a 0-based index is one lower.
       row: i + 1,
       cells,
       get(column: string) {
