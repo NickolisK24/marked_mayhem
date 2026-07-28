@@ -58,7 +58,8 @@ item data below is read **by column position**:
 | **C** | the item's points |
 | D onward | the sheet's own per-team counters — **not read by the site** |
 
-The site does not track GP values at all, so no price column is needed.
+No price column is needed here — GP values come from the `Price` column of
+the `DROPS` tab instead.
 
 If a header row is added later it will be found and used instead, so either
 layout works.
@@ -137,6 +138,7 @@ Rows are appended during the event. Only these columns are read:
 | `User` | yes | The RSN that got the drop. Any RSN on the roster works — see aliases below. |
 | `Boss` | yes | Must match a `Category` in `BINGO`. |
 | `Drop` | yes | Must match an `Item` in `BINGO`, **for that boss**. |
+| `Price` | no | GP value of the item, column **H**. See below. |
 | `Bonus` | no | Manually-awarded points. See below. |
 | `Timestamp` | no | Optional. See below. |
 
@@ -167,10 +169,20 @@ Note that an **item** drop still needs a `User` that is on the roster — a team
 name alone is not enough for one. That is deliberate: crediting an item on the
 strength of a hand-typed team cell would move points without anyone noticing.
 
+### The `Price` column
+
+The GP value the sheet accumulates in column **H** is shown against each item in
+a player's drop breakdown, and summed into that player's total value. It is read
+by the header name `Price` when one exists, and otherwise from column H by
+position.
+
+A blank or broken `Price` shows as a dash rather than as 0 GP, so an unpriced
+item is never mistaken for a worthless one.
+
 ### Everything else in this tab is ignored
 
-`Points Earned`, `# from Team`, `Price`, `# Seen`, `# for Full Points`,
-`Full Points` and `Multiplier` are **not read**. The site recomputes all of it
+`Points Earned`, `# from Team`, `# Seen`, `# for Full Points`, `Full Points` and
+`Multiplier` are **not read**. The site recomputes all of it
 from `BINGO`. You can leave those columns broken, empty, or delete them
 entirely — it makes no difference to the website.
 

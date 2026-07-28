@@ -94,6 +94,15 @@ export function dropsCsv(
   return [header, ...body].join("\n");
 }
 
+/** Build a DROPS csv with a Price column, from `[team, user, boss, drop, price]`. */
+export function dropsWithPriceCsv(
+  rows: Array<[string, string, string, string, string]>,
+): string {
+  const header = [...DROPS_COLUMNS, "Price"].join(",");
+  const body = rows.map((row) => row.map(quote).join(","));
+  return [header, ...body].join("\n");
+}
+
 /** Build a DROPS csv with a Bonus column, from `[team, user, boss, drop, bonus]`. */
 export function dropsWithBonusCsv(
   rows: Array<[string, string, string, string, string]>,

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildFixture, dropsCsv, dropsWithBonusCsv, player, team, BINGO_CSV } from "./helpers";
+import {
+  buildFixture,
+  dropsCsv,
+  dropsWithBonusCsv,
+  dropsWithPriceCsv,
+  player,
+  team,
+  BINGO_CSV,
+} from "./helpers";
 
 describe("scoring — base cases", () => {
   it("scores a single drop at its catalog value", () => {
@@ -484,5 +492,127 @@ describe("scoring — an item drop still needs a rostered player", () => {
     expect(team(result, "Lauren").dropPoints).toBe(0);
     const warning = result.warnings.find((w) => w.kind === "unknownPlayer");
     expect(warning?.message).toContain("no User");
+  });
+});
+
+describe("scoring — the per-player drop breakdown", () => {
+  it("lists each of a player's drops with its boss, item and points", () => {
+    const result = buildFixture({
+      drops: dropsCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"],
+        ["Lauren", "Charzbtw", "Callisto", "Voidwaker hilt"],
+      ]),
+    });
+
+    const drops = player(result, "Charzbtw").drops;
+    expect(drops.map((d) => d.item)).toEqual([
+      "Dragon 2h sword",
+      "Voidwaker hilt",
+    ]);
+    expect(drops.map((d) => d.boss)).toEqual(["Callisto", "Callisto"]);
+    expect(drops.map((d) => d.points)).toEqual([60, 80]);
+    expect(drops.map((d) => d.row)).toEqual([2, 3]);
+  });
+
+  it("marks the team's first of an item unique and the rest duplicates", () => {
+    const result = buildFixture({
+      drops: dropsCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"],
+        ["Lauren", "canofeesh", "Callisto", "Dragon 2h sword"],
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"],
+      ]),
+    });
+
+    expect(player(result, "Charzbtw").drops.map((d) => d.unique)).toEqual([
+      true,
+      false,
+    ]);
+    // The unique belongs to the team, so a different player's copy is a dupe.
+    expect(player(result, "canofeesh").drops.map((d) => d.unique)).toEqual([
+      false,
+    ]);
+  });
+
+  it("counts uniqueness per team, so two teams can each have a unique", () => {
+    const result = buildFixture({
+      drops: dropsCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"],
+        ["Faedaa", "MarylandRat", "Callisto", "Dragon 2h sword"],
+      ]),
+    });
+
+    expect(player(result, "Charzbtw").drops[0]!.unique).toBe(true);
+    expect(player(result, "MarylandRat").drops[0]!.unique).toBe(true);
+  });
+
+  it("separates uniqueness from the points multiplier", () => {
+    // Any Shard has a limit of 3, so the team's 2nd still scores full points
+    // while no longer being a unique.
+    const result = buildFixture({
+      drops: dropsCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Any Shard"],
+        ["Lauren", "Charzbtw", "Callisto", "Any Shard"],
+      ]),
+    });
+
+    const drops = player(result, "Charzbtw").drops;
+    expect(drops.map((d) => d.unique)).toEqual([true, false]);
+    expect(drops.map((d) => d.points)).toEqual([5, 5]);
+  });
+
+  it("reads the GP value from the drop log's Price column", () => {
+    const result = buildFixture({
+      drops: dropsWithPriceCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword", "40,331,957"],
+        ["Lauren", "Charzbtw", "Callisto", "Voidwaker hilt", "120000000"],
+      ]),
+    });
+
+    const charz = player(result, "Charzbtw");
+    expect(charz.drops.map((d) => d.price)).toEqual([40_331_957, 120_000_000]);
+    expect(charz.gpValue).toBe(160_331_957);
+  });
+
+  it("treats a blank or broken Price as unknown, not as zero", () => {
+    const result = buildFixture({
+      drops: dropsWithPriceCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword", ""],
+        ["Lauren", "Charzbtw", "Callisto", "Voidwaker hilt", "#REF!"],
+      ]),
+    });
+
+    const charz = player(result, "Charzbtw");
+    expect(charz.drops.map((d) => d.price)).toEqual([null, null]);
+    expect(charz.gpValue).toBe(0);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("falls back to column H when there is no Price header", () => {
+    // A..H with the value in H, and no header naming it.
+    const csv = [
+      "Team,User,Boss,Drop,Points Earned,# from Team,# Seen,Price",
+      "Lauren,Charzbtw,Callisto,Dragon 2h sword,,,,\"40,331,957\"",
+    ].join("\n");
+
+    const result = buildFixture({ drops: csv });
+    expect(player(result, "Charzbtw").drops[0]!.price).toBe(40_331_957);
+  });
+
+  it("gives a player with no drops an empty breakdown, not undefined", () => {
+    const result = buildFixture({
+      drops: dropsCsv([["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"]]),
+    });
+
+    expect(player(result, "Woox").drops).toEqual([]);
+    expect(player(result, "Woox").gpValue).toBe(0);
+  });
+
+  it("keeps bonus-only rows out of the drop breakdown", () => {
+    const result = buildFixture({
+      drops: dropsWithBonusCsv([["Lauren", "Charzbtw", "", "", "250"]]),
+    });
+
+    expect(player(result, "Charzbtw").drops).toEqual([]);
+    expect(team(result, "Lauren").bonusPoints).toBe(250);
   });
 });

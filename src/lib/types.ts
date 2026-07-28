@@ -112,6 +112,8 @@ export interface RawDrop {
   user: string;
   boss: string;
   drop: string;
+  /** GP value from the drop log's own Price column. Null when blank or broken. */
+  price: number | null;
   /** Hand-entered bonus points on this row. Null on ordinary drop rows. */
   bonus: number | null;
   /**
@@ -138,6 +140,24 @@ export interface TeamScore {
   dropCount: number;
 }
 
+/** One scored item, as listed in a player's drop breakdown. */
+export interface PlayerDrop {
+  id: string;
+  /** 1-based row in the drop log, so a listing can be traced back to the sheet. */
+  row: number;
+  boss: string;
+  item: string;
+  points: number;
+  /**
+   * True when this was the team's **first** of that catalog item — a genuine
+   * unique — and false when the team already had one.
+   */
+  unique: boolean;
+  /** GP value from the drop log's Price column. Null when blank or broken. */
+  price: number | null;
+  timestamp: number | null;
+}
+
 export interface PlayerScore {
   id: string;
   displayName: string;
@@ -147,6 +167,10 @@ export interface PlayerScore {
   isCaptain: boolean;
   points: number;
   dropCount: number;
+  /** Summed Price across this player's drops. */
+  gpValue: number;
+  /** Every item this player logged, oldest first. */
+  drops: PlayerDrop[];
 }
 
 export interface ScoreResult {

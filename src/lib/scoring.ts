@@ -24,6 +24,7 @@ import { TEAM_COLORS } from "@/config/event";
 import { catalogKey } from "./text";
 import type {
   Catalog,
+  PlayerDrop,
   PlayerScore,
   RawDrop,
   Roster,
@@ -102,6 +103,8 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
       isCaptain: player.isCaptain,
       points: 0,
       dropCount: 0,
+      gpValue: 0,
+      drops: [],
     });
   }
 
@@ -205,6 +208,11 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
 
     const multiplier = already < entry.fullPointsLimit ? 1 : 0.5;
     const points = entry.points * multiplier;
+    // "Unique" means the team had never logged this item before, which is what
+    // the Uniques figure on the leaderboard counts. With a quantity limit above
+    // 1 a duplicate can still score full points, so this is not the same thing
+    // as the multiplier.
+    const isUnique = already === 0;
 
     teamScore.dropPoints += points;
     teamScore.dropCount += 1;
@@ -213,6 +221,17 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
     if (playerScore) {
       playerScore.points += points;
       playerScore.dropCount += 1;
+      playerScore.gpValue += drop.price ?? 0;
+      playerScore.drops.push({
+        id: `${drop.row}-${entry.key}`,
+        row: drop.row,
+        boss: entry.category,
+        item: entry.item,
+        points,
+        unique: isUnique,
+        price: drop.price,
+        timestamp: drop.timestamp,
+      });
     }
   }
 

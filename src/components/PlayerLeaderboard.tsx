@@ -5,6 +5,7 @@ import { FALLBACK_TEAM_COLOR } from "@/config/event";
 import { formatCount, formatPoints } from "@/lib/format";
 import type { TeamColor } from "@/lib/teamColor";
 import type { PlayerScore } from "@/lib/types";
+import { PlayerDropsModal } from "./PlayerDropsModal";
 
 export function PlayerLeaderboard({
   players,
@@ -16,6 +17,9 @@ export function PlayerLeaderboard({
   colors: Map<string, TeamColor>;
 }) {
   const [filter, setFilter] = useState<string | null>(null);
+  const [openPlayerId, setOpenPlayerId] = useState<string | null>(null);
+
+  const openPlayer = players.find((p) => p.id === openPlayerId) ?? null;
 
   const shown =
     filter === null
@@ -51,42 +55,57 @@ export function PlayerLeaderboard({
             const color = colors.get(player.team) ?? FALLBACK_TEAM_COLOR;
 
             return (
-              <li
-                key={player.id}
-                className="flex items-center gap-3 px-4 py-2.5"
-              >
-                <span className="w-6 shrink-0 text-right text-sm text-parchment-faint tabular-nums">
-                  {index + 1}
-                </span>
-                <span
-                  aria-hidden
-                  className="h-8 w-0.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: color.hex }}
-                />
+              <li key={player.id}>
+                <button
+                  type="button"
+                  onClick={() => setOpenPlayerId(player.id)}
+                  aria-haspopup="dialog"
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-ink-edge/50 focus:outline-none focus-visible:bg-ink-edge/50"
+                >
+                  <span className="w-6 shrink-0 text-right text-sm text-parchment-faint tabular-nums">
+                    {index + 1}
+                  </span>
+                  <span
+                    aria-hidden
+                    className="h-8 w-0.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: color.hex }}
+                  />
 
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-parchment">
-                    {player.displayName}
-                    {player.isCaptain && (
-                      <span className="ml-1.5 text-[0.65rem] tracking-wider text-gold uppercase">
-                        captain
-                      </span>
-                    )}
-                  </p>
-                  <p className="truncate text-xs text-parchment-faint">
-                    {player.team}
-                    {player.dropCount > 0 &&
-                      ` · ${formatCount(player.dropCount)} drop${player.dropCount === 1 ? "" : "s"}`}
-                  </p>
-                </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-parchment">
+                      {player.displayName}
+                      {player.isCaptain && (
+                        <span className="ml-1.5 text-[0.65rem] tracking-wider text-gold uppercase">
+                          captain
+                        </span>
+                      )}
+                    </p>
+                    <p className="truncate text-xs text-parchment-faint">
+                      {player.team}
+                      {player.dropCount > 0 &&
+                        ` · ${formatCount(player.dropCount)} drop${player.dropCount === 1 ? "" : "s"}`}
+                    </p>
+                  </div>
 
-                <span className="shrink-0 font-display text-lg font-semibold text-parchment tabular-nums">
-                  {formatPoints(player.points)}
-                </span>
+                  <span className="shrink-0 font-display text-lg font-semibold text-parchment tabular-nums">
+                    {formatPoints(player.points)}
+                  </span>
+                  <span aria-hidden className="shrink-0 text-parchment-faint">
+                    ›
+                  </span>
+                </button>
               </li>
             );
           })}
         </ol>
+      )}
+
+      {openPlayer && (
+        <PlayerDropsModal
+          player={openPlayer}
+          color={colors.get(openPlayer.team) ?? FALLBACK_TEAM_COLOR}
+          onClose={() => setOpenPlayerId(null)}
+        />
       )}
     </div>
   );
