@@ -12,7 +12,7 @@
  * a mismatch is reported, never acted on.
  */
 
-import { BONUS_CATEGORIES } from "@/config/event";
+import { BONUS_CATEGORIES, ITEM_SCORING_CAPS } from "@/config/event";
 import type { SheetRow, SheetTable } from "./csv";
 import { parseLimit, parseNumber } from "./numbers";
 import { catalogKey, normalize, squash, tidy } from "./text";
@@ -74,6 +74,12 @@ const POSITIONAL = { category: 0, item: 1, points: 2 } as const;
 
 export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
   const warnings: Warning[] = [];
+
+  // Item name -> per-team scoring cap, matched across every boss.
+  const capByItem = new Map(
+    ITEM_SCORING_CAPS.map((entry) => [normalize(entry.item), entry.cap]),
+  );
+  const capsMatched = new Set<string>();
   const byKey = new Map<string, CatalogEntry>();
   const entries: CatalogEntry[] = [];
   const byCategory = new Map<string, CatalogEntry[]>();
@@ -128,8 +134,11 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
       // a missing value there is harmless and defaults to 0.
       points: points ?? 0,
       fullPointsLimit: limit,
+      scoringCap: capByItem.get(normalize(item)) ?? null,
       row: row.row,
     };
+
+    if (entry.scoringCap !== null) capsMatched.add(normalize(item));
 
     if (isBonusCategory(category)) {
       bonusEntries.push(entry);
@@ -178,6 +187,19 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
     const bucket = byCategory.get(category);
     if (bucket) bucket.push(entry);
     else byCategory.set(category, [entry]);
+  }
+
+  // A cap that matches nothing is a typo in configuration, and silently letting
+  // a capped item score without limit is exactly the kind of quiet wrongness
+  // this codebase avoids.
+  for (const [item, cap] of capByItem) {
+    if (capsMatched.has(item)) continue;
+    warnings.push({
+      kind: "scoringCapUnmatched",
+      tab,
+      value: item,
+      message: `A per-team cap of ${cap} is configured for "${item}", but no item by that name is in the catalog, so nothing is capped. Check the spelling against the item list.`,
+    });
   }
 
   return {

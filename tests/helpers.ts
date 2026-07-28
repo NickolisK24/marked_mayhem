@@ -19,6 +19,9 @@ export const BINGO_CSV = [
   "Chaos Elemental,Any Shard,Chaos ElementalAny Shard,5,3",
   "Venenatis,Dragon 2h sword,VenenatisDragon 2h sword,50,1",
   "Venenatis,Treasonous ring,VenenatisTreasonous ring,10,5",
+  // Capped at 5 per team by config, so the default fixture exercises that path
+  // and does not trip the "cap matches nothing" warning.
+  "Inferno,Infernal cape,InfernoInfernal cape,60,1",
   "Misc.,Boss Pets,Misc.Boss Pets,50,1",
   "Team Challenges,Team Challenge 1st,Team ChallengesTeam Challenge 1st,100,1",
 ].join("\n");

@@ -309,10 +309,19 @@ For each drop, in chronological order within a team:
 
 1. Look up the item in `BINGO` by `Boss` + `Drop`.
 2. Count how many of that exact item the team has already logged.
-3. If that count is **below** the item's `Full pts qty limit`, the drop scores
-   its full `Points`. Otherwise it scores **half**. Duplicates are intentional
-   and still count as drops, they just score less.
-4. Anything in the row's `Bonus` column is added to that team's bonus points.
+3. The team's **first** of that item scores its full `Points`. Every one after
+   scores **half**, with no ceiling — a team can keep banking half points from
+   duplicates for as long as they keep getting them.
+4. A short list of items is **capped** instead. Past the cap they score nothing
+   at all. Right now that is Infernal cape, capped at 5 per team: the first
+   scores 60, capes two to five score 30, and capes six onward score 0. They are
+   still listed in the player's breakdown, marked "over the cap", because the
+   team did receive them.
+5. Anything in the row's `Bonus` column is added to that team's bonus points.
+
+The capped items are set in `src/config/event.ts` (`ITEM_SCORING_CAPS`), not in
+the sheet. If a cap is configured for an item name that is not in the catalog,
+the warnings panel says so rather than the cap quietly doing nothing.
 
 Team totals are drop points plus bonus points, tracked separately. Uniques
 counts distinct catalog items claimed. Player totals use the same arithmetic,

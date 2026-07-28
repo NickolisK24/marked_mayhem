@@ -3,7 +3,13 @@ import { BINGO_COLUMNS, buildCatalog } from "@/lib/catalog";
 import { parseTable } from "@/lib/csv";
 
 function build(csv: string) {
-  return buildCatalog(parseTable(csv, BINGO_COLUMNS), "BINGO");
+  const result = buildCatalog(parseTable(csv, BINGO_COLUMNS), "BINGO");
+  return {
+    ...result,
+    // These fixtures are about layout. A configured scoring cap that matches no
+    // item in a two-line fixture is expected and covered in its own test.
+    warnings: result.warnings.filter((w) => w.kind !== "scoringCapUnmatched"),
+  };
 }
 
 /**

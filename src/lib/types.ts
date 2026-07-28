@@ -21,6 +21,7 @@ export type WarningKind =
   | "catalogKeyMismatch"
   | "unparsedNumber"
   | "pendingPrice"
+  | "scoringCapUnmatched"
   | "rosterAmbiguousAlias"
   | "bossNotInCatalog";
 
@@ -56,6 +57,11 @@ export interface CatalogEntry {
   points: number;
   /** How many of this item, per team, score full points. Defaults to 1. */
   fullPointsLimit: number;
+  /**
+   * How many of this item, per team, score at all. Null when uncapped, which is
+   * the norm — only a handful of items have a ceiling.
+   */
+  scoringCap: number | null;
   row: number;
 }
 
@@ -162,6 +168,11 @@ export interface PlayerDrop {
   unique: boolean;
   /** GP value from the drop log's Price column. Null when blank or broken. */
   price: number | null;
+  /**
+   * True when this drop was past the item's per-team cap and so scored nothing.
+   * It is still listed, because the team did receive it.
+   */
+  overCap: boolean;
   timestamp: number | null;
 }
 
