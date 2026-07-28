@@ -115,6 +115,7 @@ function staleOr(...tabErrors: TabError[]): EventPayload {
     warnings: [],
     tabErrors,
     ordering: "rowOrder",
+    hasPrices: false,
     stale: true,
   };
 }

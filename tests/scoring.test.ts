@@ -443,3 +443,67 @@ describe("scoring — catalog integrity", () => {
     expect(team(result, "Lauren").dropPoints).toBe(60);
   });
 });
+
+describe("scoring — bonus points come from the catalog when the tab omits them", () => {
+  const bingo = [
+    "Misc.,,",
+    ",Boss Pets,250",
+    ",Jars,100",
+    "Team Challenges,,",
+    ",Team 1st,400",
+    "Callisto,,",
+    ",Dragon 2h sword,60",
+  ].join("\n");
+
+  it("looks up the points for a bonus whose points cell is blank", () => {
+    const result = buildFixture({
+      bingo,
+      bonus: [BONUS_COLUMNS.join(","), "Lauren,Boss Pets,,,Callisto pet"].join("\n"),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(250);
+    expect(result.warnings.filter((w) => w.kind === "unknownBonusType")).toEqual([]);
+  });
+
+  it("lets an explicit points value override the catalog", () => {
+    const result = buildFixture({
+      bingo,
+      bonus: [BONUS_COLUMNS.join(","), "Lauren,Boss Pets,75,,half award"].join("\n"),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(75);
+  });
+
+  it("accepts a bonus type the catalog defines but the config list does not", () => {
+    // The sheet says "Team 1st"; the hard-coded fallback list says
+    // "Team Challenge 1st". The catalog is the authority.
+    const result = buildFixture({
+      bingo,
+      bonus: [BONUS_COLUMNS.join(","), "Oops,Team 1st,,,week 1"].join("\n"),
+    });
+
+    expect(team(result, "Oops").bonusPoints).toBe(400);
+    expect(result.warnings.filter((w) => w.kind === "unknownBonusType")).toEqual([]);
+  });
+
+  it("flags a bonus type in neither the catalog nor the config list", () => {
+    const result = buildFixture({
+      bingo,
+      bonus: [BONUS_COLUMNS.join(","), "Lauren,Bosss Petz,50,,typo"].join("\n"),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(50);
+    expect(result.warnings.map((w) => w.kind)).toContain("unknownBonusType");
+  });
+
+  it("skips a bonus with no points anywhere and says where to look", () => {
+    const result = buildFixture({
+      bingo,
+      bonus: [BONUS_COLUMNS.join(","), "Lauren,Mystery Award,,,"].join("\n"),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(0);
+    const warning = result.warnings.find((w) => w.kind === "unparsedNumber");
+    expect(warning?.message).toContain("item catalog");
+  });
+});

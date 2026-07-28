@@ -141,22 +141,33 @@ export function Dashboard() {
           <LeaderboardSkeleton />
         ) : (
           <>
-            {view === "teams" && <TeamLeaderboard teams={payload.teams} />}
+            {view === "teams" && (
+              <TeamLeaderboard
+                teams={payload.teams}
+                hasPrices={payload.hasPrices}
+              />
+            )}
             {view === "feed" && (
               <DropFeed
                 feed={payload.feed}
                 colors={colors}
                 ordering={payload.ordering}
+                hasPrices={payload.hasPrices}
               />
             )}
             {view === "bosses" && (
-              <BossProgress bosses={payload.bosses} colors={colors} />
+              <BossProgress
+                bosses={payload.bosses}
+                colors={colors}
+                hasPrices={payload.hasPrices}
+              />
             )}
             {view === "players" && (
               <PlayerLeaderboard
                 players={payload.players}
                 teams={teamNames}
                 colors={colors}
+                hasPrices={payload.hasPrices}
               />
             )}
             {view === "rules" && <Rules rules={payload.rules} />}

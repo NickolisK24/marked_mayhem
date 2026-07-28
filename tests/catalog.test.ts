@@ -148,3 +148,88 @@ describe("sectioned catalog layout", () => {
     expect(warnings[0]?.row).toBe(3);
   });
 });
+
+/**
+ * The live tab as it actually is: no header row at all. Row 1 is a title with
+ * per-team scoreboard columns, rows 2-4 are running totals, and the item data
+ * below is purely positional — A for the boss heading, B for the item, C for
+ * its points, D onward per-team counters.
+ */
+const HEADERLESS = [
+  "Marked Mayhem,,,Team 1 Lauren,,Team 2 Faedaa,,Team 3 Oops,,Team 4 harmony,,Team 5,",
+  "Total Points,,,,0,,0,,0,,0,,0",
+  "Number Pts,,,,0,,0,,0,,0,,0",
+  ",,,,$0,,$0,,$0,,$0,,$0",
+  "Misc.,,,,,,,,,,,,",
+  ",Boss Pets,250,0,0,0,0,0,0,0,0,0,0",
+  ",Jars,100,0,0,0,0,0,0,0,0,0,0",
+  ",Most Team Profit,350,0,0,0,0,0,0,0,0,0,0",
+  ",,,0,0,0,0,0,0,0,0,0,0",
+  "Team Challenges,,,,,,,,,,,,",
+  ",Team 1st,400,0,0,0,0,0,0,0,0,0,0",
+  ",Team Participation,50,0,0,0,0,0,0,0,0,0,0",
+  ",,,0,0,0,0,0,0,0,0,0,0",
+  "Armadyl,,,,,,,,,,,,",
+  ",Armadyl Chestplate,100,0,0,0,0,0,0,0,0,0,0",
+  ",Armadyl Hilt,140,0,0,0,0,0,0,0,0,0,0",
+  ",Any Shard,50,0,0,0,0,0,0,0,0,0,0",
+  ",All Uniques (Not Shard),300,0,0,0,0,0,0,0,0,0,0",
+  ",,,0,0,0,0,0,0,0,0,0,0",
+  "Bandos (General Graardor),,,,,,,,,,,,",
+  ",Bandos Chestplate,80,0,0,0,0,0,0,0,0,0,0",
+  ",Any Shard,50,0,0,0,0,0,0,0,0,0,0",
+].join("\n");
+
+describe("headerless catalog read by column position", () => {
+  it("reads bosses and items with no header row present", () => {
+    const { catalog } = build(HEADERLESS);
+
+    expect([...catalog.byCategory.keys()]).toEqual([
+      "Armadyl",
+      "Bandos (General Graardor)",
+    ]);
+    expect(catalog.byKey.get("armadyl|armadyl hilt")?.points).toBe(140);
+    expect(catalog.byKey.get("bandos (general graardor)|any shard")?.points).toBe(50);
+  });
+
+  it("does not mistake the title or the running totals for items", () => {
+    const { catalog, warnings } = build(HEADERLESS);
+
+    const items = catalog.entries.map((e) => e.item);
+    expect(items).not.toContain("Total Points");
+    expect(items).not.toContain("Number Pts");
+    expect(items).not.toContain("Marked Mayhem");
+    expect(warnings).toEqual([]);
+  });
+
+  it("routes Misc. and Team Challenges to bonuses with their points", () => {
+    const { catalog } = build(HEADERLESS);
+
+    expect([...catalog.byCategory.keys()]).not.toContain("Misc.");
+    expect(
+      catalog.bonusEntries.map((e) => `${e.item}=${e.points}`),
+    ).toEqual([
+      "Boss Pets=250",
+      "Jars=100",
+      "Most Team Profit=350",
+      "Team 1st=400",
+      "Team Participation=50",
+    ]);
+  });
+
+  it("reports no prices, since the tab has no price column", () => {
+    const { catalog } = build(HEADERLESS);
+    expect(catalog.entries.every((e) => e.price === null)).toBe(true);
+  });
+
+  it("defaults every quantity limit to 1 when the column is absent", () => {
+    const { catalog } = build(HEADERLESS);
+    expect(catalog.entries.every((e) => e.fullPointsLimit === 1)).toBe(true);
+  });
+
+  it("reports true spreadsheet row numbers with no header to offset", () => {
+    const { catalog } = build(HEADERLESS);
+    // "Armadyl Chestplate" is on row 15 of the fixture.
+    expect(catalog.byKey.get("armadyl|armadyl chestplate")?.row).toBe(15);
+  });
+});

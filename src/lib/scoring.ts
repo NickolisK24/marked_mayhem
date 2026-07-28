@@ -20,7 +20,7 @@
  */
 
 import { TEAM_COLORS } from "@/config/event";
-import { catalogKey } from "./text";
+import { catalogKey, normalize } from "./text";
 import type {
   AwardedBonus,
   BonusRow,
@@ -221,7 +221,18 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
 
   /* --- bonuses -------------------------------------------------------------- */
 
-  const recognised = new Set(bonusTypes.map((t) => t.trim().toLowerCase()));
+  // The catalog's Misc. and Team Challenges sections already list every bonus
+  // and what it is worth, so the bonus tab does not have to repeat the points —
+  // a blank points cell falls back to the catalog value.
+  const catalogBonusPoints = new Map<string, number>();
+  for (const entry of catalog.bonusEntries) {
+    catalogBonusPoints.set(normalize(entry.item), entry.points);
+  }
+
+  const recognised = new Set([
+    ...catalogBonusPoints.keys(),
+    ...bonusTypes.map(normalize),
+  ]);
 
   for (const bonus of bonuses) {
     const teamName = roster.resolveTeam(bonus.team);
@@ -238,18 +249,21 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
       continue;
     }
 
-    if (bonus.points === null) {
+    const typeKey = normalize(bonus.bonusType);
+    const points = bonus.points ?? catalogBonusPoints.get(typeKey) ?? null;
+
+    if (points === null) {
       warnings.push({
         kind: "unparsedNumber",
         tab: tabs.bonus,
         row: bonus.row,
         value: bonus.bonusType,
-        message: `Bonus for ${teamScore.name} has no readable points value and was not awarded.`,
+        message: `Bonus "${bonus.bonusType}" for ${teamScore.name} has no points value, and none could be found in the item catalog, so it was not awarded.`,
       });
       continue;
     }
 
-    const isKnownType = recognised.has(bonus.bonusType.trim().toLowerCase());
+    const isKnownType = recognised.has(typeKey);
     if (!isKnownType) {
       // Awarded anyway. A typo in bonus_type must never silently cost a team
       // points that were already decided by staff.
@@ -258,20 +272,20 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
         tab: tabs.bonus,
         row: bonus.row,
         value: bonus.bonusType,
-        message: `"${bonus.bonusType}" is not a recognised bonus type. The ${bonus.points} points were still awarded to ${teamScore.name}.`,
+        message: `"${bonus.bonusType}" is not listed under Misc. or Team Challenges in the item catalog. The ${points} points were still awarded to ${teamScore.name}.`,
       });
     }
 
     const awarded: AwardedBonus = {
       team: teamScore.name,
       bonusType: bonus.bonusType,
-      points: bonus.points,
+      points,
       awardedAt: bonus.awardedAt,
       notes: bonus.notes,
       recognisedType: isKnownType,
     };
     teamScore.bonuses.push(awarded);
-    teamScore.bonusPoints += bonus.points;
+    teamScore.bonusPoints += points;
   }
 
   /* --- totals and ordering -------------------------------------------------- */
