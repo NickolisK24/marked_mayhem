@@ -8,9 +8,15 @@ export const EVENT_NAME = "Marked Mayhem";
 /**
  * The event window.
  *
+ * Both times are US Eastern, the timezone the event is run on.
+ *
  * ISO 8601 with an explicit offset — never a bare local time, which would mean
- * something different to every phone that opens the site. `-04:00` is US
- * Eastern daylight time, which both dates fall inside.
+ * something different to every phone that opens the site. `-04:00` is Eastern
+ * *daylight* time, which both of these dates fall inside.
+ *
+ * Reusing this file for a later event: the offset is part of the date, not a
+ * fixed property of Eastern time. An event between early November and mid-March
+ * is on `-05:00`, and leaving it at `-04:00` puts the countdown an hour out.
  *
  * The header counts down to the start before the event, to the end during it,
  * and reads "event over" afterwards. Setting either to null degrades to a
