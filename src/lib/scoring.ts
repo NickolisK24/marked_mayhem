@@ -8,9 +8,10 @@
  *     N is that item's `Full pts qty limit` (default 1).
  *   - Every drop past that limit scores 0.5×. Duplicates are intentional and
  *     unlimited — a team can keep banking half points indefinitely.
- *   - A few items carry a per-team cap instead. Past the cap they score nothing
- *     at all: an Infernal cape scores 60, then 30 for capes two to five, then 0.
- *     Over-cap drops are still listed, because the team did receive them.
+ *   - A few items carry a per-team cap instead, written into the catalog name as
+ *     "(Limit N)". All N score **full** points — there is no half tier for these
+ *     — and past N they score nothing at all. Over-cap drops are still listed,
+ *     because the team did receive them.
  *   - Order therefore matters: each team's drops are processed oldest-first so
  *     the first N are the ones that get full credit.
  *   - Bonus points come from the drop log's `Bonus` column, typed in by event
@@ -234,6 +235,7 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
         points,
         unique: isUnique,
         price: drop.price,
+        cap: entry.scoringCap,
         overCap,
         timestamp: drop.timestamp,
       });

@@ -767,15 +767,15 @@ describe("scoring — the Infernal cape per-team cap", () => {
     expect(team(result, "Lauren").dropPoints).toBe(60);
   });
 
-  it("scores capes two to five at half", () => {
+  it("scores all five capes in full — there is no half tier for a capped item", () => {
     const result = buildFixture({ bingo, drops: capes(5) });
-    // 60 + 30 + 30 + 30 + 30
-    expect(team(result, "Lauren").dropPoints).toBe(180);
+    // 60 x 5
+    expect(team(result, "Lauren").dropPoints).toBe(300);
   });
 
   it("scores nothing for the sixth cape and beyond", () => {
     const result = buildFixture({ bingo, drops: capes(9) });
-    expect(team(result, "Lauren").dropPoints).toBe(180);
+    expect(team(result, "Lauren").dropPoints).toBe(300);
   });
 
   it("marks the over-cap capes so the breakdown can say why", () => {
@@ -786,7 +786,7 @@ describe("scoring — the Infernal cape per-team cap", () => {
       ...player(result, "canofeesh").drops,
     ].sort((a, b) => a.row - b.row);
 
-    expect(all.map((d) => d.points)).toEqual([60, 30, 30, 30, 30, 0, 0]);
+    expect(all.map((d) => d.points)).toEqual([60, 60, 60, 60, 60, 0, 0]);
     expect(all.map((d) => d.overCap)).toEqual([
       false,
       false,
@@ -796,6 +796,22 @@ describe("scoring — the Infernal cape per-team cap", () => {
       true,
       true,
     ]);
+  });
+
+  it("carries the cap on each drop so the breakdown can name it", () => {
+    const result = buildFixture({ bingo, drops: capes(2) });
+    const all = [
+      ...player(result, "Charzbtw").drops,
+      ...player(result, "canofeesh").drops,
+    ];
+    expect(all.every((d) => d.cap === 5)).toBe(true);
+  });
+
+  it("leaves an uncapped item's cap null", () => {
+    const result = buildFixture({
+      drops: dropsCsv([["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"]]),
+    });
+    expect(player(result, "Charzbtw").drops[0]!.cap).toBeNull();
   });
 
   it("still lists an over-cap cape, since the team did receive it", () => {
@@ -815,8 +831,8 @@ describe("scoring — the Infernal cape per-team cap", () => {
     }
     const result = buildFixture({ bingo, drops: dropsCsv(rows) });
 
-    expect(team(result, "Lauren").dropPoints).toBe(180);
-    expect(team(result, "Faedaa").dropPoints).toBe(180);
+    expect(team(result, "Lauren").dropPoints).toBe(300);
+    expect(team(result, "Faedaa").dropPoints).toBe(300);
   });
 
   it("leaves uncapped items unlimited", () => {
@@ -850,8 +866,8 @@ describe("scoring — the Infernal cape per-team cap", () => {
     ]) as Array<[string, string, string, string]>;
 
     const result = buildFixture({ bingo: other, drops: dropsCsv(rows) });
-    // 50 + four at 25, then nothing.
-    expect(team(result, "Lauren").dropPoints).toBe(150);
+    // Five quivers at 50 each, then nothing.
+    expect(team(result, "Lauren").dropPoints).toBe(250);
   });
 
   it("matches a drop that does carry the suffix too", () => {

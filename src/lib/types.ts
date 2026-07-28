@@ -167,6 +167,8 @@ export interface PlayerDrop {
   unique: boolean;
   /** GP value from the drop log's Price column. Null when blank or broken. */
   price: number | null;
+  /** The item's per-team cap, or null when it is uncapped. */
+  cap: number | null;
   /**
    * True when this drop was past the item's per-team cap and so scored nothing.
    * It is still listed, because the team did receive it.

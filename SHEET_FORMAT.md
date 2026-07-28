@@ -43,7 +43,7 @@ this tab, it cannot score.
 | `Item` | **yes** | The item name. Must match the drop log exactly. |
 | `Key` | no | `Category` + `Item`. **Not used for scoring** — see below. |
 | `Points` | **yes** | Base points. **A row with an unreadable `Points` cannot be scored and is skipped.** |
-| `Full pts qty limit` | no | How many of this item, per team, score full points. Defaults to 1. |
+| `Full pts qty limit` | no | How many of this item, per team, score full points. Defaults to 1. Ignored for an item capped with `(Limit N)` — there N sets it. |
 
 ### There is no header row
 
@@ -312,9 +312,10 @@ For each drop, in chronological order within a team:
 3. The team's **first** of that item scores its full `Points`. Every one after
    scores **half**, with no ceiling — a team can keep banking half points from
    duplicates for as long as they keep getting them.
-4. An item whose catalog name ends in **`(Limit N)`** is capped instead. Past
-   N per team it scores nothing at all. They are still listed in the player's
-   breakdown, marked "over the cap", because the team did receive them.
+4. An item whose catalog name ends in **`(Limit N)`** works differently: all N
+   score **full** points, with no half tier at all, and past N per team it
+   scores nothing. Over-cap drops are still listed in the player's breakdown,
+   marked "over the cap", because the team did receive them.
 5. Anything in the row's `Bonus` column is added to that team's bonus points.
 
 ### Capping an item: `(Limit N)`
@@ -327,8 +328,10 @@ already does:
 | Zuk | `Infernal Cape (Limit 5)` | 60 |
 | Fortis Colosseum | `Dizana's quiver (Limit 5)` | 50 |
 
-An Infernal Cape then scores 60 for the team's first, 30 for capes two to five,
-and 0 for cape six onward.
+Each of a team's first five Infernal Capes then scores the full 60, and cape six
+onward scores 0. The half-points rule does not apply to a capped item — `N` is
+both how many score full points and where scoring stops. A team's five capes are
+worth 300, not 60 + four halves.
 
 The `(Limit N)` part is a **note, not part of the name**. It is stripped before
 anything is matched or displayed, so:
