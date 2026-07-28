@@ -340,14 +340,18 @@ describe("scoring — bad input never crashes and never scores silently", () => 
     expect(result.warnings.map((w) => w.kind)).toContain("unknownItem");
   });
 
-  it("refuses to score a bonus-category row logged in the drop log", () => {
+  it("awards a bonus-category row as bonus, never as drop points", () => {
     const result = buildFixture({
       drops: dropsCsv([["Lauren", "Charzbtw", "Misc.", "Boss Pets"]]),
     });
 
+    // Named on the row, but Misc. is a team award: it must not reach the drop
+    // total, the drop count, or the uniques figure.
     expect(team(result, "Lauren").dropPoints).toBe(0);
-    // Misc. is not a boss category, so it does not exist in the join map.
-    expect(result.warnings.length).toBeGreaterThan(0);
+    expect(team(result, "Lauren").bonusPoints).toBe(50);
+    expect(team(result, "Lauren").dropCount).toBe(0);
+    expect(team(result, "Lauren").uniques).toBe(0);
+    expect(result.warnings).toEqual([]);
   });
 
   it("trusts the roster over the drop log's Team column, and flags the clash", () => {
@@ -977,5 +981,131 @@ describe("scoring — team totals do not depend on the order of the drop log", (
     );
     expect(first.points).not.toBe(second.points);
     expect(first.dropCount).toBe(second.dropCount);
+  });
+});
+
+describe("scoring — Misc. and Team Challenges are awarded to a team, not a person", () => {
+  // These categories are won by a team. The drop log leaves column C (User)
+  // empty for them, so they must not be held to the rule that an item drop
+  // needs a rostered player — that rule exists to stop a hand-typed Team cell
+  // moving *item* points, which is not what these rows are.
+
+  it("scores a Misc. award with no User at all", () => {
+    const result = buildFixture({
+      drops: dropsCsv([["Lauren", "", "Misc.", "Boss Pets"]]),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(50);
+    expect(team(result, "Lauren").totalPoints).toBe(50);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("scores a Team Challenges award with no User at all", () => {
+    const result = buildFixture({
+      drops: dropsCsv([["Lauren", "", "Team Challenges", "Team Challenge 1st"]]),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(100);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("prefers the row's own Bonus cell over the catalog's points", () => {
+    // The sheet fills Bonus in from the catalog, but an event manager can
+    // override it — a half award, or a challenge scored differently on the day.
+    const result = buildFixture({
+      drops: dropsWithBonusCsv([["Lauren", "", "Misc.", "Boss Pets", "25"]]),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(25);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("does not double-count when Bonus and the catalog agree", () => {
+    // The regression this guards: the Bonus cell was already being added for
+    // every row, so pricing the award from the catalog as well would pay twice.
+    const result = buildFixture({
+      drops: dropsWithBonusCsv([["Lauren", "", "Misc.", "Boss Pets", "50"]]),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(50);
+  });
+
+  it("still accepts a User on the row, and credits their team", () => {
+    const result = buildFixture({
+      drops: dropsCsv([["", "Charzbtw", "Misc.", "Boss Pets"]]),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(50);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("keeps the award off the player's own total and breakdown", () => {
+    // A bonus belongs to a team. Naming someone on the row must not move their
+    // personal standing or put a non-drop in their drop list.
+    const result = buildFixture({
+      drops: dropsCsv([["Lauren", "Charzbtw", "Misc.", "Boss Pets"]]),
+    });
+
+    expect(player(result, "Charzbtw").points).toBe(0);
+    expect(player(result, "Charzbtw").dropCount).toBe(0);
+    expect(player(result, "Charzbtw").drops).toEqual([]);
+  });
+
+  it("flags an award that is in neither the catalog nor the Bonus column", () => {
+    // The loud-failure rule still applies: an unrecognised award is reported,
+    // never guessed at.
+    const result = buildFixture({
+      drops: dropsCsv([["Lauren", "", "Misc.", "Something Invented"]]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(0);
+    expect(result.warnings.map((w) => w.kind)).toContain("unknownItem");
+  });
+
+  it("scores an unlisted award that carries its own Bonus value", () => {
+    // A one-off challenge nobody added to the catalog still pays, because the
+    // manager typed the number in.
+    const result = buildFixture({
+      drops: dropsWithBonusCsv([
+        ["Lauren", "", "Team Challenges", "Invented On The Day", "75"],
+      ]),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(75);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("needs a recognisable team, and says so when there is not one", () => {
+    const result = buildFixture({
+      drops: dropsCsv([["Nonexistent", "", "Misc.", "Boss Pets"]]),
+    });
+
+    expect(result.warnings.map((w) => w.kind)).toContain("unknownTeam");
+  });
+
+  it("accepts the bare Misc spelling as well as Misc.", () => {
+    const result = buildFixture({
+      bingo: [BINGO_CSV, "Misc,Boss Pets,MiscBoss Pets,50,1"].join("\n"),
+      drops: dropsCsv([["Lauren", "", "Misc", "Boss Pets"]]),
+    });
+
+    expect(team(result, "Lauren").bonusPoints).toBe(50);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("adds team awards to drop points rather than replacing them", () => {
+    const result = buildFixture({
+      drops: dropsCsv([
+        ["Lauren", "Charzbtw", "Callisto", "Dragon 2h sword"],
+        ["Lauren", "", "Misc.", "Boss Pets"],
+        ["Lauren", "", "Team Challenges", "Team Challenge 1st"],
+      ]),
+    });
+
+    const scored = team(result, "Lauren");
+    expect(scored.dropPoints).toBe(60);
+    expect(scored.bonusPoints).toBe(150);
+    expect(scored.totalPoints).toBe(210);
+    expect(scored.dropCount).toBe(1);
   });
 });

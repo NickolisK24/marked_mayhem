@@ -168,6 +168,31 @@ ignored, not warned about.
 Note that an **item** drop still needs a `User` that is on the roster — a team
 name alone is not enough for one. That is deliberate: crediting an item on the
 strength of a hand-typed team cell would move points without anyone noticing.
+`Misc.` and `Team Challenges` are the exception, below.
+
+### `Misc.` and `Team Challenges` awards
+
+These two categories are won by a **team**, not by a person, so their rows leave
+`User` (column C) empty. Log them like any other row, with the category in
+`Boss` and the award in `Drop`:
+
+| Team | User | Boss | Drop | Bonus |
+| --- | --- | --- | --- | --- |
+| Faedaa | | Misc. | Most Team Uniques | |
+| harmony | | Team Challenges | Team 1st | |
+| Faedaa | | Team Challenges | Team Participation | 25 |
+
+The points come from `BINGO`, exactly as they do for a boss drop — leave `Bonus`
+empty and the award is priced from the catalog automatically. Fill `Bonus` in
+and **that number wins**, which is how you award a partial or one-off amount
+(the third row above pays 25, not the catalog's 50).
+
+An award that is in neither the catalog nor the `Bonus` column is flagged rather
+than guessed at.
+
+These land in the team's **bonus** total, so they show separately from drop
+points on the leaderboard, and they never touch a player's individual total or
+drop breakdown even if someone is named on the row.
 
 ### The `Price` column
 

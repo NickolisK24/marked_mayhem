@@ -142,6 +142,11 @@ For each drop, in chronological order within a team:
 4. Anything in the row's `Bonus` column is added to that team's bonus points.
    That column is typed in by event managers, so it is read as given rather
    than recomputed.
+5. A row in a bonus category (`Misc.`, `Team Challenges`) is a team award rather
+   than a drop. It carries no `User` — nobody personally won it — so it is
+   exempt from the rostered-player requirement, and it is priced from the
+   `Bonus` cell when there is one and from the catalog when there is not.
+   Awards land in the team's bonus total and never in a player's.
 
 Team totals carry drop points and bonus points separately, and the leaderboard
 shows the split. Player totals cover drops only — a bonus belongs to a team, not
@@ -211,7 +216,8 @@ tests/format.test.ts    points, relative time and the event-window countdown
 
 The negative fixtures matter as much as the positive ones: missing columns,
 blank rows, `#REF!` cells, comma-formatted numbers, an unknown RSN, an unknown
-item, a bonus with nobody to award it to, a team with zero drops, and a
+item, a bonus with nobody to award it to, a team award in neither the catalog
+nor the `Bonus` column, a team with zero drops, and a
 duplicate item crossing its quantity limit mid-sequence.
 
 ### Testing without the real sheet

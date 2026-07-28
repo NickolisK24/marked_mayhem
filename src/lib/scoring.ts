@@ -14,9 +14,12 @@
  *     because the team did receive them.
  *   - Order therefore matters: each team's drops are processed oldest-first so
  *     the first N are the ones that get full credit.
- *   - Bonus points come from the drop log's `Bonus` column, typed in by event
- *     managers. They are kept separate from drop points so the leaderboard can
- *     show the split, and both add into the team total.
+ *   - Bonus points come from the drop log's `Bonus` column, and from rows in the
+ *     `Misc.` / `Team Challenges` categories, which are awarded to a team rather
+ *     than to a person and so carry no User. Those are priced from the row's
+ *     `Bonus` cell when it has one and from the catalog when it does not. Bonus
+ *     points are kept separate from drop points so the leaderboard can show the
+ *     split, and both add into the team total.
  *   - Player totals use the same arithmetic, attributed to the individual. The
  *     quantity limit is a team-level resource, so a player's drop inherits
  *     whatever multiplier the team-level sequence gave it.
@@ -25,6 +28,7 @@
  */
 
 import { TEAM_COLORS } from "@/config/event";
+import { isBonusCategory } from "./catalog";
 import { catalogKey } from "./text";
 import type {
   Catalog,
@@ -160,6 +164,32 @@ export function scoreEvent(input: ScoreInput): ScoreResult {
         value: drop.team,
         message: `Row says team "${drop.team}" but ${player.displayName} is on ${team} in the roster. Scored for ${team}.`,
       });
+    }
+
+    /* --- Misc. / Team Challenges: a team award, not a drop --------------- */
+
+    // These categories are won by a team, not by a person, so the row has no
+    // User to credit and must not be held to the player requirement below.
+    // Points come from the row's own Bonus cell when it has one — the sheet
+    // fills that in from the catalog — and from the catalog directly when it
+    // does not, so the award scores either way.
+    if (isBonusCategory(drop.boss)) {
+      const entry = catalog.bonusByKey.get(catalogKey(drop.boss, drop.drop));
+      const award = drop.bonus ?? entry?.points ?? null;
+
+      if (award === null) {
+        warnings.push({
+          kind: "unknownItem",
+          tab: dropsTab,
+          row: drop.row,
+          value: `${drop.boss} — ${drop.drop}`,
+          message: `"${drop.drop}" is not listed under ${drop.boss} in the item catalog and the row has no Bonus value, so nothing was awarded. Add it to the catalog or type the points into the Bonus column.`,
+        });
+        continue;
+      }
+
+      teamScore.bonusPoints += award;
+      continue;
     }
 
     /* --- hand-entered bonus points -------------------------------------- */
