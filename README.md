@@ -150,9 +150,13 @@ For each drop, in chronological order within a team:
    whereas a typo is a mistake, and falling back to a hand-typed team name
    would hide it while still moving the total.
 
-An `All Uniques` entry is never logged, so it is **derived**: a team holding
-every other non-shard, non-set entry its category lists is awarded it once, and
-the card marks it "completed" with the boss named. The sheet computes it with a
+`All Uniques` and `Completed ...` entries are never logged, so they are
+**derived**. All Uniques goes to a team holding every other non-shard,
+non-aggregate entry its category lists; a set completion goes to a team holding
+every piece under that boss whose name mentions the set, so `Completed Torva`
+wants the Torva Full Helm, Platebody and Platelegs. Both are read from the
+catalog rather than written into the site, so a set the sheet adds later needs
+no code. The card marks them "completed" with the boss named. The sheet computes it with a
 formula, and a formula fills in a cell rather than appending a row to the drop
 log, so the completion existed only in the sheet's own totals. A hand-logged row
 suppresses the derivation, so the two can never both pay.

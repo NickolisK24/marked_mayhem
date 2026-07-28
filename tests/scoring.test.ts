@@ -1382,6 +1382,29 @@ describe("scoring — All Uniques is derived, not logged", () => {
     "Armadyl,All Uniques (Not Shard),ArmadylAll Uniques (Not Shard),300,1",
   ].join("\n");
 
+  // Nex, with a set completion sitting alongside the pieces it is made of.
+  const NEX = [
+    "Category,Item,Key,Points,Full pts qty limit",
+    "Nex,Torva Full Helm (damaged),NexTorva Full Helm (damaged),400,1",
+    "Nex,Torva Platebody (damaged),NexTorva Platebody (damaged),400,1",
+    "Nex,Torva Platelegs (damaged),NexTorva Platelegs (damaged),400,1",
+    "Nex,Nihil Horn,NexNihil Horn,400,1",
+    "Nex,Completed Torva,NexCompleted Torva,1200,1",
+    "Nex,All Uniques,NexAll Uniques,2400,1",
+  ].join("\n");
+
+  const nex = (item: string): [string, string, string, string] => [
+    "Lauren",
+    "Charzbtw",
+    "Nex",
+    item,
+  ];
+  const TORVA = [
+    nex("Torva Full Helm (damaged)"),
+    nex("Torva Platebody (damaged)"),
+    nex("Torva Platelegs (damaged)"),
+  ];
+
   const piece = (item: string): [string, string, string, string] => [
     "Lauren",
     "Charzbtw",
@@ -1497,30 +1520,164 @@ describe("scoring — All Uniques is derived, not logged", () => {
     expect(team(result, "Lauren").totalPoints).toBe(5);
   });
 
-  it("does not require a set completion, which is itself derived elsewhere", () => {
-    // Nex lists "Completed Torva" alongside the pieces. Requiring it would make
-    // one aggregate depend on another that may never have been logged.
-    const nex = [
-      "Category,Item,Key,Points,Full pts qty limit",
-      "Nex,Torva Full Helm,NexTorva Full Helm,400,1",
-      "Nex,Torva Platebody,NexTorva Platebody,400,1",
-      "Nex,Nihil Horn,NexNihil Horn,400,1",
-      "Nex,Completed Torva,NexCompleted Torva,1200,1",
-      "Nex,All Uniques,NexAll Uniques,2400,1",
-    ].join("\n");
-
+  it("does not require a set completion, which is derived in its own right", () => {
+    // Nex lists "Completed Torva" alongside the pieces. All Uniques must not
+    // require it, or one aggregate would depend on another.
     const result = buildFixture({
-      bingo: nex,
+      bingo: NEX,
+      drops: dropsCsv(TORVA.concat([nex("Nihil Horn")])),
+    });
+
+    // Every non-aggregate Nex entry is held, so All Uniques lands too.
+    expect(team(result, "Lauren").awards.map((a) => a.item)).toEqual([
+      "Completed Torva",
+      "All Uniques",
+    ]);
+  });
+});
+
+describe("scoring — a set completion is derived from its pieces", () => {
+  // "All torva = torva full helm (damaged), torva platebody (damaged), torva
+  // platelegs (damaged)". Rather than listing that here, the requirement is
+  // read from the catalog: a "Completed X" entry wants every piece under the
+  // same boss whose name mentions X. A set the sheet adds later needs no code.
+  const NEX = [
+    "Category,Item,Key,Points,Full pts qty limit",
+    "Nex,Torva Full Helm (damaged),NexTorva Full Helm (damaged),400,1",
+    "Nex,Torva Platebody (damaged),NexTorva Platebody (damaged),400,1",
+    "Nex,Torva Platelegs (damaged),NexTorva Platelegs (damaged),400,1",
+    "Nex,Zaryte Vambraces,NexZaryte Vambraces,300,1",
+    "Nex,Nihil Horn,NexNihil Horn,400,1",
+    "Nex,Completed Torva,NexCompleted Torva,1200,1",
+  ].join("\n");
+
+  const nex = (item: string): [string, string, string, string] => [
+    "Lauren",
+    "Charzbtw",
+    "Nex",
+    item,
+  ];
+  const TORVA = [
+    nex("Torva Full Helm (damaged)"),
+    nex("Torva Platebody (damaged)"),
+    nex("Torva Platelegs (damaged)"),
+  ];
+
+  it("awards the set once all three pieces are held", () => {
+    const result = buildFixture({ bingo: NEX, drops: dropsCsv(TORVA) });
+
+    // 400 x 3 for the pieces, plus 1200 for the set.
+    expect(team(result, "Lauren").totalPoints).toBe(2400);
+    expect(team(result, "Lauren").awards.map((a) => a.item)).toEqual([
+      "Completed Torva",
+    ]);
+  });
+
+  it("does not award it on two pieces out of three", () => {
+    const result = buildFixture({
+      bingo: NEX,
+      drops: dropsCsv(TORVA.slice(0, 2)),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(800);
+    expect(team(result, "Lauren").awards).toEqual([]);
+  });
+
+  it("ignores pieces from the same boss that are not part of the set", () => {
+    // Vambraces and horn are Nex uniques but not Torva, so they neither help
+    // nor hinder.
+    const result = buildFixture({
+      bingo: NEX,
+      drops: dropsCsv([nex("Zaryte Vambraces"), nex("Nihil Horn")]),
+    });
+
+    expect(team(result, "Lauren").awards).toEqual([]);
+  });
+
+  it("names the boss and marks it derived, like any other completion", () => {
+    const result = buildFixture({ bingo: NEX, drops: dropsCsv(TORVA) });
+
+    const [award] = team(result, "Lauren").awards;
+    expect(award?.category).toBe("Nex");
+    expect(award?.points).toBe(1200);
+    expect(award?.derived).toBe(true);
+    expect(award?.row).toBeNull();
+  });
+
+  it("does not pay twice when the row was also logged by hand", () => {
+    const result = buildFixture({
+      bingo: NEX,
+      drops: dropsCsv([...TORVA, nex("Completed Torva")]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(2400);
+    expect(team(result, "Lauren").awards).toEqual([]);
+  });
+
+  it("counts per team, so two teams' halves do not make a set", () => {
+    const result = buildFixture({
+      bingo: NEX,
       drops: dropsCsv([
-        ["Lauren", "Charzbtw", "Nex", "Torva Full Helm"],
-        ["Lauren", "Charzbtw", "Nex", "Torva Platebody"],
-        ["Lauren", "Charzbtw", "Nex", "Nihil Horn"],
+        ...TORVA.slice(0, 2),
+        ["Faedaa", "MarylandRat", "Nex", "Torva Platelegs (damaged)"],
       ]),
     });
 
+    expect(team(result, "Lauren").awards).toEqual([]);
+    expect(team(result, "Faedaa").awards).toEqual([]);
+  });
+
+  it("keeps the set out of the uniques and drop counts", () => {
+    const result = buildFixture({ bingo: NEX, drops: dropsCsv(TORVA) });
+
+    expect(team(result, "Lauren").uniques).toBe(3);
+    expect(team(result, "Lauren").dropCount).toBe(3);
+  });
+
+  it("credits no player for the set itself", () => {
+    const result = buildFixture({ bingo: NEX, drops: dropsCsv(TORVA) });
+
+    expect(player(result, "Charzbtw").points).toBe(1200);
+  });
+
+  it("derives a set the sheet adds later, with no code change", () => {
+    // The rule reads the pieces out of the catalog, so Virtus works the same.
+    const virtus = [
+      "Category,Item,Key,Points,Full pts qty limit",
+      "Nex,Virtus Mask,NexVirtus Mask,500,1",
+      "Nex,Virtus Robe Top,NexVirtus Robe Top,500,1",
+      "Nex,Virtus Robe Bottom,NexVirtus Robe Bottom,500,1",
+      "Nex,Completed Virtus,NexCompleted Virtus,1500,1",
+    ].join("\n");
+
+    const result = buildFixture({
+      bingo: virtus,
+      drops: dropsCsv([
+        nex("Virtus Mask"),
+        nex("Virtus Robe Top"),
+        nex("Virtus Robe Bottom"),
+      ]),
+    });
+
+    expect(team(result, "Lauren").totalPoints).toBe(3000);
     expect(team(result, "Lauren").awards.map((a) => a.item)).toEqual([
-      "All Uniques",
+      "Completed Virtus",
     ]);
-    expect(team(result, "Lauren").totalPoints).toBe(3600);
+  });
+
+  it("does not award a set whose pieces the catalog does not list", () => {
+    const orphan = [
+      "Category,Item,Key,Points,Full pts qty limit",
+      "Nex,Nihil Horn,NexNihil Horn,400,1",
+      "Nex,Completed Torva,NexCompleted Torva,1200,1",
+    ].join("\n");
+
+    const result = buildFixture({
+      bingo: orphan,
+      drops: dropsCsv([nex("Nihil Horn")]),
+    });
+
+    expect(team(result, "Lauren").awards).toEqual([]);
+    expect(team(result, "Lauren").totalPoints).toBe(400);
   });
 });

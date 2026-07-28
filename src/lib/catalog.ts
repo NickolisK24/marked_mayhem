@@ -56,18 +56,21 @@ export const BINGO_ALL_COLUMNS = [
 
 
 /**
- * Entries that stand for "the team collected everything else here" rather than
- * for an item somebody received.
+ * Entries standing for something a team assembled rather than for an item
+ * somebody received.
  *
- * The sheet works these out with a formula, and a formula fills in a cell — it
- * cannot append a row to the drop log. So the completion exists in the sheet's
- * own totals and nowhere the site can see it, which is why the site derives it
- * instead. See `deriveAggregates` in scoring.ts.
+ * Two shapes, both computed by the sheet with a formula — and a formula fills in
+ * a cell, it cannot append a row to the drop log. So these exist in the sheet's
+ * own totals and in no row the site could read, which is why the site works them
+ * out itself. See the derivation pass in scoring.ts.
+ *
+ *   "All Uniques (Not Shard)"  everything else the boss lists
+ *   "Completed Torva"          the pieces of one set within a boss
  */
 const ALL_UNIQUES = /^all uniques\b/;
 
-/** A set completion, itself an aggregate of pieces, e.g. "Completed Torva". */
-const SET_COMPLETION = /^completed\b/;
+/** "Completed Torva" -> the set it names, "torva". */
+const SET_COMPLETION = /^completed\s+(.+)$/;
 
 /**
  * "Any Shard" and friends. Shards are repeatable filler rather than one of a
@@ -76,16 +79,55 @@ const SET_COMPLETION = /^completed\b/;
  */
 const SHARD = /\bshard\b/;
 
+/** True for an entry that is itself assembled out of others. */
+function isAggregateName(normalized: string): boolean {
+  return ALL_UNIQUES.test(normalized) || SET_COMPLETION.test(normalized);
+}
+
 /**
- * What a team must have collected for an aggregate entry to be earned.
+ * What a team must hold for an aggregate to be earned, or null for an ordinary
+ * item.
  *
- * Everything else under the same category, excluding shards and excluding other
- * aggregates: a set completion is itself derived, so requiring it would mean
- * one aggregate depending on another that may never have been logged.
+ * A set completion takes the pieces that name the set: "Completed Torva" wants
+ * every entry under the same boss whose name mentions Torva, which is the Full
+ * Helm, Platebody and Platelegs. Reading it from the catalog rather than listing
+ * the pieces here means a set the sheet adds later needs no code.
+ *
+ * "All Uniques" takes everything else the boss lists, less shards.
+ *
+ * Neither counts another aggregate, so the two never depend on each other and
+ * the order they are derived in cannot matter.
  */
+function requirementsFor(
+  entry: CatalogEntry,
+  entries: CatalogEntry[],
+): string[] | null {
+  const name = normalize(entry.item);
+
+  const others = entries.filter(
+    (other) =>
+      other.key !== entry.key && !isAggregateName(normalize(other.item)),
+  );
+
+  const set = SET_COMPLETION.exec(name)?.[1]?.trim();
+  if (set !== undefined && set !== "") {
+    return others
+      .filter((other) => normalize(other.item).includes(set))
+      .map((other) => other.key);
+  }
+
+  if (ALL_UNIQUES.test(name)) {
+    return others
+      .filter((other) => !SHARD.test(normalize(other.item)))
+      .map((other) => other.key);
+  }
+
+  return null;
+}
+
 export interface Aggregate {
   entry: CatalogEntry;
-  /** Catalog keys, all of which the team must hold. Never empty. */
+  /** Catalog keys, all of which the team must hold. Never fewer than two. */
   requires: string[];
 }
 
@@ -94,22 +136,11 @@ function buildAggregates(byCategory: Map<string, CatalogEntry[]>): Aggregate[] {
 
   for (const entries of byCategory.values()) {
     for (const entry of entries) {
-      if (!ALL_UNIQUES.test(normalize(entry.item))) continue;
+      const requires = requirementsFor(entry, entries);
+      if (requires === null) continue;
 
-      const requires = entries
-        .filter((other) => {
-          const name = normalize(other.item);
-          return (
-            other.key !== entry.key &&
-            !ALL_UNIQUES.test(name) &&
-            !SET_COMPLETION.test(name) &&
-            !SHARD.test(name)
-          );
-        })
-        .map((other) => other.key);
-
-      // A category with nothing else in it would otherwise award itself the
-      // moment the event started.
+      // Nothing real to assemble. A category listing an aggregate and little
+      // else would otherwise award it the moment the event started.
       if (requires.length < 2) continue;
 
       aggregates.push({ entry, requires });
