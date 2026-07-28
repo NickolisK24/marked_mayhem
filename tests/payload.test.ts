@@ -44,6 +44,10 @@ describe("buildPayload", () => {
     expect(payload.teams[0]!.totalPoints).toBe(110);
     expect(payload.rosters).toHaveLength(4);
     expect(payload.tabErrors).toEqual([]);
+    // The event window travels in the payload so the header can render all
+    // three phases without importing config into a client component.
+    expect(payload.eventStart).toBe("2026-07-30T17:00:00-04:00");
+    expect(payload.eventEnd).toBe("2026-08-09T17:00:00-04:00");
   });
 
   it("groups boss progress by category and marks claims", () => {

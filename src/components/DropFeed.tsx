@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { HalfPointsBadge, TeamChip } from "./Chips";
-import { formatGp, formatPoints, formatRelative } from "@/lib/format";
+import { formatPoints, formatRelative } from "@/lib/format";
 import { FALLBACK_TEAM_COLOR } from "@/config/event";
 import type { TeamColor } from "@/lib/teamColor";
 import type { FeedEntry } from "@/lib/types";
@@ -11,12 +11,10 @@ export function DropFeed({
   feed,
   colors,
   ordering,
-  hasPrices,
 }: {
   feed: FeedEntry[];
   colors: Map<string, TeamColor>;
   ordering: "timestamp" | "rowOrder";
-  hasPrices: boolean;
 }) {
   // Relative times are computed after mount for the same hydration reason as
   // the countdown, and re-tick once a minute.
@@ -74,9 +72,6 @@ export function DropFeed({
                   </p>
                   <p className="text-xs text-parchment-faint">
                     {entry.boss}
-                    {hasPrices &&
-                      entry.gpValue > 0 &&
-                      ` · ${formatGp(entry.gpValue)}`}
                   </p>
                 </div>
 

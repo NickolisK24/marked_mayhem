@@ -23,8 +23,8 @@ checking the warnings panel now and then.
 - **Blank rows are fine.** Leave as many as you like; they are skipped silently.
 - **`#REF!`, `#N/A`, `#VALUE!`, `#DIV/0!` are handled.** A broken number is
   treated as missing, never as zero.
-- **Number formatting is handled.** `40,331,957`, `$0`, `1.4b` and `315m` all
-  read correctly.
+- **Number formatting is handled.** `1,250`, `$0` and `40,331,957` all read
+  correctly.
 - **The sheet must be viewable by anyone with the link.** Share → General
   access → "Anyone with the link" → Viewer. *Publish to web is a separate
   setting and is not a substitute* — with publishing on but link sharing off,
@@ -42,7 +42,6 @@ this tab, it cannot score.
 | `Category` | no | The boss name. Usually only filled on the section heading row — see below. |
 | `Item` | **yes** | The item name. Must match the drop log exactly. |
 | `Key` | no | `Category` + `Item`. **Not used for scoring** — see below. |
-| `Price` | no | GP value. Missing or broken counts as 0 GP; the points still score. |
 | `Points` | **yes** | Base points. **A row with an unreadable `Points` cannot be scored and is skipped.** |
 | `Full pts qty limit` | no | How many of this item, per team, score full points. Defaults to 1. |
 
@@ -59,6 +58,8 @@ item data below is read **by column position**:
 | **C** | the item's points |
 | D onward | the sheet's own per-team counters — **not read by the site** |
 
+The site does not track GP values at all, so no price column is needed.
+
 If a header row is added later it will be found and used instead, so either
 layout works.
 
@@ -67,15 +68,15 @@ layout works.
 The catalog is organised as a row holding just the boss name, followed by that
 boss's items:
 
-|  | Category | Item | Price | Points | Full pts qty limit |
-| --- | --- | --- | --- | --- | --- |
-| | **Armadyl** | | | | |
-| | | Armadyl Chestplate | 27,000,000 | 40 | 1 |
-| | | Armadyl Hilt | 120,000,000 | 80 | 1 |
-| | | Any Shard | 1,000,000 | 5 | 3 |
-| | | All Uniques (not shard) | 190,000,000 | 100 | 1 |
-| | **Callisto** | | | | |
-| | | Dragon 2h sword | 40,331,957 | 60 | 1 |
+|  | Category | Item | Points | Full pts qty limit |
+| --- | --- | --- | --- | --- |
+| | **Armadyl** | | | |
+| | | Armadyl Chestplate | 40 | 1 |
+| | | Armadyl Hilt | 80 | 1 |
+| | | Any Shard | 5 | 3 |
+| | | All Uniques (not shard) | 100 | 1 |
+| | **Callisto** | | | |
+| | | Dragon 2h sword | 60 | 1 |
 
 Every item **inherits the boss from the heading above it**. A heading row is
 recognised by having exactly one filled cell — a real item row always has at
@@ -281,11 +282,12 @@ For each drop, in chronological order within a team:
 1. Look up the item in `BINGO` by `Boss` + `Drop`.
 2. Count how many of that exact item the team has already logged.
 3. If that count is **below** the item's `Full pts qty limit`, the drop scores
-   its full `Points`. Otherwise it scores **half**.
-4. The item's `Price` is added to the team's GP total either way — duplicates
-   are intentional and still count, they just score less.
+   its full `Points`. Otherwise it scores **half**. Duplicates are intentional
+   and still count as drops, they just score less.
 
 Team totals are drop points plus bonus points, tracked separately. Uniques
 counts distinct catalog items claimed. Player totals use the same arithmetic,
 attributed to whoever logged the drop; because the quantity limit is a
 team-level resource, a player who is second for their team gets the half.
+
+GP values are not tracked.

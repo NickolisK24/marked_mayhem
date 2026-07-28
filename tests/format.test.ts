@@ -2,34 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   countdownTo,
   formatCount,
-  formatGp,
   formatPoints,
   formatRelative,
 } from "@/lib/format";
-
-describe("formatGp", () => {
-  it("formats the shapes OSRS players expect", () => {
-    expect(formatGp(1_200_000)).toBe("1.2m");
-    expect(formatGp(315_000_000)).toBe("315m");
-    expect(formatGp(1_400_000_000)).toBe("1.4b");
-  });
-
-  it("drops a trailing .0", () => {
-    expect(formatGp(2_000_000)).toBe("2m");
-    expect(formatGp(3_000_000_000)).toBe("3b");
-  });
-
-  it("handles small and zero values", () => {
-    expect(formatGp(0)).toBe("0");
-    expect(formatGp(950)).toBe("950");
-    expect(formatGp(40_331_957)).toBe("40.3m");
-  });
-
-  it("never renders NaN", () => {
-    expect(formatGp(Number.NaN)).toBe("0");
-    expect(formatGp(Number.POSITIVE_INFINITY)).toBe("0");
-  });
-});
 
 describe("formatPoints", () => {
   it("keeps half-credit points readable", () => {
@@ -87,5 +62,40 @@ describe("countdownTo", () => {
       seconds: 0,
       ended: true,
     });
+  });
+});
+
+describe("event phases", () => {
+  const start = Date.parse("2026-07-30T17:00:00-04:00");
+  const end = Date.parse("2026-08-09T17:00:00-04:00");
+
+  it("parses the configured window to the intended instants", () => {
+    // 17:00 US Eastern daylight time is 21:00 UTC.
+    expect(new Date(start).toISOString()).toBe("2026-07-30T21:00:00.000Z");
+    expect(new Date(end).toISOString()).toBe("2026-08-09T21:00:00.000Z");
+    expect(end - start).toBe(10 * 86_400_000);
+  });
+
+  it("counts down to the start before the event begins", () => {
+    const now = Date.parse("2026-07-29T17:00:00-04:00");
+    expect(countdownTo(start, now)).toEqual({
+      days: 1,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+      ended: false,
+    });
+  });
+
+  it("counts down to the end once it is running", () => {
+    const now = Date.parse("2026-08-08T17:00:00-04:00");
+    expect(countdownTo(end, now).days).toBe(1);
+    expect(countdownTo(end, now).ended).toBe(false);
+  });
+
+  it("reports ended, not a negative timer, after the end", () => {
+    const now = Date.parse("2026-08-10T00:00:00-04:00");
+    expect(countdownTo(end, now).ended).toBe(true);
+    expect(countdownTo(end, now).days).toBe(0);
   });
 });

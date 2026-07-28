@@ -33,7 +33,6 @@ export const BINGO_ALL_COLUMNS = [
   "Category",
   "Item",
   "Key",
-  "Price",
   "Points",
   "Full pts qty limit",
 ] as const;
@@ -114,10 +113,8 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
       continue;
     }
 
-    const rawPrice = cell(row, "Price", null);
     const rawPoints = cell(row, "Points", POSITIONAL.points);
 
-    const price = parseNumber(rawPrice);
     const points = parseNumber(rawPoints);
     // Absent from the live catalog, so every item defaults to full points for
     // the first one per team.
@@ -127,7 +124,6 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
       key: catalogKey(category, item),
       category,
       item,
-      price,
       // Points is required to score. Bonus-category rows are reference-only, so
       // a missing value there is harmless and defaults to 0.
       points: points ?? 0,
@@ -149,16 +145,6 @@ export function buildCatalog(table: SheetTable, tab: string): CatalogResult {
         message: `Points could not be read ("${rawPoints}"), so this item cannot be scored and was skipped.`,
       });
       continue;
-    }
-
-    if (price === null && rawPrice !== "") {
-      warnings.push({
-        kind: "unparsedNumber",
-        tab,
-        row: row.row,
-        value: rawPrice,
-        message: `Price for ${category} — ${item} could not be read; it counts as 0 GP.`,
-      });
     }
 
     const existing = byKey.get(entry.key);

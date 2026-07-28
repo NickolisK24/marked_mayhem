@@ -104,6 +104,7 @@ function staleOr(...tabErrors: TabError[]): EventPayload {
   return {
     generatedAt: Date.now(),
     eventName: "Marked Mayhem",
+    eventStart: null,
     eventEnd: null,
     teams: [],
     players: [],
@@ -115,7 +116,6 @@ function staleOr(...tabErrors: TabError[]): EventPayload {
     warnings: [],
     tabErrors,
     ordering: "rowOrder",
-    hasPrices: false,
     stale: true,
   };
 }

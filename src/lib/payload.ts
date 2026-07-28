@@ -10,6 +10,7 @@ import {
   BONUS_TYPES,
   EVENT_END,
   EVENT_NAME,
+  EVENT_START,
   FEED_LIMIT,
   type TabConfig,
 } from "@/config/event";
@@ -73,12 +74,6 @@ export function buildPayload(
         "No scoreable items could be read. Expected a boss name on its own row, then that boss's items beneath it with their points.",
     });
   }
-
-  // The live catalog carries no prices, so the GP columns are hidden rather
-  // than showing a confident 0 for every team.
-  const hasPrices = catalog.entries.some(
-    (entry) => entry.price !== null && entry.price > 0,
-  );
 
   /* --- roster (TEAMS) ---------------------------------------------------- */
 
@@ -146,7 +141,6 @@ export function buildPayload(
         key: entry.key,
         item: entry.item,
         points: entry.points,
-        price: entry.price,
         fullPointsLimit: entry.fullPointsLimit,
         claimedBy: scores.claims.get(entry.key) ?? [],
       }));
@@ -175,6 +169,7 @@ export function buildPayload(
   return {
     generatedAt: now,
     eventName: EVENT_NAME,
+    eventStart: EVENT_START,
     eventEnd: EVENT_END,
     teams: scores.teams,
     players: scores.players,
@@ -190,7 +185,6 @@ export function buildPayload(
     warnings,
     tabErrors: errors,
     ordering: scores.ordering,
-    hasPrices,
     stale: false,
   };
 }

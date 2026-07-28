@@ -89,6 +89,7 @@ export function Dashboard() {
     <div className="min-h-dvh">
       <Header
         eventName={payload?.eventName ?? EVENT_NAME}
+        eventStart={payload?.eventStart ?? null}
         eventEnd={payload?.eventEnd ?? null}
         generatedAt={payload?.generatedAt ?? null}
         refreshing={refreshing}
@@ -141,33 +142,22 @@ export function Dashboard() {
           <LeaderboardSkeleton />
         ) : (
           <>
-            {view === "teams" && (
-              <TeamLeaderboard
-                teams={payload.teams}
-                hasPrices={payload.hasPrices}
-              />
-            )}
+            {view === "teams" && <TeamLeaderboard teams={payload.teams} />}
             {view === "feed" && (
               <DropFeed
                 feed={payload.feed}
                 colors={colors}
                 ordering={payload.ordering}
-                hasPrices={payload.hasPrices}
               />
             )}
             {view === "bosses" && (
-              <BossProgress
-                bosses={payload.bosses}
-                colors={colors}
-                hasPrices={payload.hasPrices}
-              />
+              <BossProgress bosses={payload.bosses} colors={colors} />
             )}
             {view === "players" && (
               <PlayerLeaderboard
                 players={payload.players}
                 teams={teamNames}
                 colors={colors}
-                hasPrices={payload.hasPrices}
               />
             )}
             {view === "rules" && <Rules rules={payload.rules} />}

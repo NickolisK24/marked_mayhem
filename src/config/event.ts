@@ -6,15 +6,18 @@
 export const EVENT_NAME = "Marked Mayhem";
 
 /**
- * Event end, used for the countdown in the header.
+ * The event window.
  *
- * TODO(nickolis): set the real end date. Until this is a valid future date the
- * header shows "end date TBD" instead of a countdown — it never renders a
- * negative or NaN timer.
+ * ISO 8601 with an explicit offset — never a bare local time, which would mean
+ * something different to every phone that opens the site. `-04:00` is US
+ * Eastern daylight time, which both dates fall inside.
  *
- * Format: ISO 8601 with an explicit offset, e.g. "2026-08-15T23:59:59-04:00".
+ * The header counts down to the start before the event, to the end during it,
+ * and reads "event over" afterwards. Setting either to null degrades to a
+ * "TBD" label rather than a negative or NaN timer.
  */
-export const EVENT_END: string | null = null;
+export const EVENT_START: string | null = "2026-07-30T17:00:00-04:00";
+export const EVENT_END: string | null = "2026-08-09T17:00:00-04:00";
 
 /**
  * Team colours are defined here, never read from the sheet — a staff member

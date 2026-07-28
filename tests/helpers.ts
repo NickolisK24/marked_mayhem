@@ -22,15 +22,15 @@ export const BONUS_TYPES = [
  */
 export const BINGO_CSV = [
   BINGO_ALL_COLUMNS.join(","),
-  "Callisto,Dragon 2h sword,CallistoDragon 2h sword,\"40,331,957\",60,1",
-  "Callisto,Voidwaker hilt,CallistoVoidwaker hilt,\"120,000,000\",80,1",
-  "Callisto,Any Shard,CallistoAny Shard,\"1,000,000\",5,3",
-  "Chaos Elemental,Dragon 2h sword,Chaos ElementalDragon 2h sword,\"40,331,957\",25,1",
-  "Chaos Elemental,Any Shard,Chaos ElementalAny Shard,\"1,000,000\",5,3",
-  "Venenatis,Dragon 2h sword,VenenatisDragon 2h sword,\"40,331,957\",50,1",
-  "Venenatis,Treasonous ring,VenenatisTreasonous ring,$0,10,5",
-  "Misc.,Boss Pets,Misc.Boss Pets,,50,1",
-  "Team Challenges,Team Challenge 1st,Team ChallengesTeam Challenge 1st,,100,1",
+  "Callisto,Dragon 2h sword,CallistoDragon 2h sword,60,1",
+  "Callisto,Voidwaker hilt,CallistoVoidwaker hilt,80,1",
+  "Callisto,Any Shard,CallistoAny Shard,5,3",
+  "Chaos Elemental,Dragon 2h sword,Chaos ElementalDragon 2h sword,25,1",
+  "Chaos Elemental,Any Shard,Chaos ElementalAny Shard,5,3",
+  "Venenatis,Dragon 2h sword,VenenatisDragon 2h sword,50,1",
+  "Venenatis,Treasonous ring,VenenatisTreasonous ring,10,5",
+  "Misc.,Boss Pets,Misc.Boss Pets,50,1",
+  "Team Challenges,Team Challenge 1st,Team ChallengesTeam Challenge 1st,100,1",
 ].join("\n");
 
 /**

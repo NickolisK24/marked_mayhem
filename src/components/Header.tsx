@@ -9,6 +9,7 @@ function pad(value: number) {
 
 export function Header({
   eventName,
+  eventStart,
   eventEnd,
   generatedAt,
   refreshing,
@@ -16,6 +17,7 @@ export function Header({
   onRefresh,
 }: {
   eventName: string;
+  eventStart: string | null;
   eventEnd: string | null;
   generatedAt: number | null;
   refreshing: boolean;
@@ -33,9 +35,24 @@ export function Header({
     return () => clearInterval(timer);
   }, []);
 
+  // Three phases: counting down to the start, counting down to the end, and
+  // over. The target switches once the event begins so the header never sits on
+  // a stale "starts in 00:00:00".
+  const startMs = eventStart ? Date.parse(eventStart) : Number.NaN;
   const endMs = eventEnd ? Date.parse(eventEnd) : Number.NaN;
+  const hasStart = Number.isFinite(startMs);
   const hasEnd = Number.isFinite(endMs);
-  const countdown = hasEnd && now !== null ? countdownTo(endMs, now) : null;
+
+  const notStarted = hasStart && now !== null && now < startMs;
+  const finished = hasEnd && now !== null && now >= endMs;
+
+  const target = notStarted ? startMs : endMs;
+  const label = notStarted ? "Starts in" : finished ? "Event over" : "Ends in";
+
+  const countdown =
+    now !== null && Number.isFinite(target) && !finished
+      ? countdownTo(target, now)
+      : null;
 
   return (
     <header className="border-b border-ink-edge">
@@ -61,15 +78,13 @@ export function Header({
         <div className="flex items-center justify-between gap-3 sm:justify-end">
           <div className="text-left sm:text-right">
             <div className="text-[0.65rem] tracking-wider text-parchment-faint uppercase">
-              {countdown?.ended ? "Event over" : "Ends in"}
+              {label}
             </div>
             <div className="font-display text-lg tabular-nums text-parchment">
               {countdown === null ? (
                 <span className="text-parchment-faint">
-                  {hasEnd ? "—" : "end date TBD"}
+                  {finished ? "—" : hasEnd ? "—" : "dates TBD"}
                 </span>
-              ) : countdown.ended ? (
-                "—"
               ) : (
                 <>
                   {countdown.days > 0 && `${countdown.days}d `}

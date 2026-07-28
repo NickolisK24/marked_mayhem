@@ -4,33 +4,6 @@
  * client renders after the first poll, or React hydration complains.
  */
 
-/**
- * GP as OSRS players write it: 1.2m, 315m, 1.4b.
- *
- * One decimal below 100 of a unit, none above, because "1.2m" is useful and
- * "315.4m" is noise.
- */
-export function formatGp(value: number): string {
-  if (!Number.isFinite(value)) return "0";
-
-  const negative = value < 0;
-  const abs = Math.abs(value);
-
-  const scaled = (divisor: number, suffix: string) => {
-    const n = abs / divisor;
-    const text = n >= 100 ? Math.round(n).toString() : trimZero(n.toFixed(1));
-    return `${text}${suffix}`;
-  };
-
-  let out: string;
-  if (abs >= 1_000_000_000) out = scaled(1_000_000_000, "b");
-  else if (abs >= 1_000_000) out = scaled(1_000_000, "m");
-  else if (abs >= 1_000) out = scaled(1_000, "k");
-  else out = Math.round(abs).toString();
-
-  return negative ? `-${out}` : out;
-}
-
 /** Points can be fractional because half-credit drops are `points × 0.5`. */
 export function formatPoints(value: number): string {
   if (!Number.isFinite(value)) return "0";

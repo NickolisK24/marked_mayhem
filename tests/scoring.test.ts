@@ -11,7 +11,6 @@ describe("scoring — base cases", () => {
 
     expect(team(result, "Lauren").dropPoints).toBe(60);
     expect(team(result, "Lauren").uniques).toBe(1);
-    expect(team(result, "Lauren").gpValue).toBe(40_331_957);
     expect(team(result, "Lauren").dropCount).toBe(1);
   });
 
@@ -69,7 +68,6 @@ describe("scoring — the quantity limit and the half-point multiplier", () => {
     // Duplicates still count as drops and still add GP, they just score less.
     expect(team(result, "Lauren").dropCount).toBe(3);
     expect(team(result, "Lauren").uniques).toBe(1);
-    expect(team(result, "Lauren").gpValue).toBe(40_331_957 * 3);
   });
 
   it("crosses a limit of 3 mid-sequence: three full, then half", () => {
@@ -165,8 +163,6 @@ describe("scoring — player attribution", () => {
 
     expect(player(result, "Charzbtw").points).toBe(60);
     expect(player(result, "canofeesh").points).toBe(80);
-    expect(player(result, "Charzbtw").gpValue).toBe(40_331_957);
-    expect(player(result, "canofeesh").gpValue).toBe(120_000_000);
   });
 
   it("passes the team-level multiplier through to the player who was second", () => {
@@ -324,16 +320,15 @@ describe("scoring — bad input never crashes and never scores silently", () => 
     const oops = team(result, "Oops");
     expect(oops.totalPoints).toBe(0);
     expect(oops.uniques).toBe(0);
-    expect(oops.gpValue).toBe(0);
+    expect(oops.dropCount).toBe(0);
     // ...and ranked last rather than missing.
     expect(result.teams[0]!.name).toBe("Lauren");
   });
 
-  it("treats a broken price as 0 GP without losing the points", () => {
-    const bingo = [
-      BINGO_ALL_COLUMNS.join(","),
-      "Callisto,Voidwaker hilt,CallistoVoidwaker hilt,#REF!,80,1",
-    ].join("\n");
+  it("scores an item whose optional columns are all absent", () => {
+    const bingo = ["Category,Item,Points", "Callisto,Voidwaker hilt,80"].join(
+      "\n",
+    );
 
     const result = buildFixture({
       bingo,
@@ -341,16 +336,6 @@ describe("scoring — bad input never crashes and never scores silently", () => 
     });
 
     expect(team(result, "Lauren").dropPoints).toBe(80);
-    expect(team(result, "Lauren").gpValue).toBe(0);
-  });
-
-  it("counts a $0 item as a real zero, not a missing value", () => {
-    const result = buildFixture({
-      drops: dropsCsv([["Lauren", "Charzbtw", "Venenatis", "Treasonous ring"]]),
-    });
-
-    expect(team(result, "Lauren").dropPoints).toBe(10);
-    expect(team(result, "Lauren").gpValue).toBe(0);
     expect(result.warnings).toHaveLength(0);
   });
 
@@ -432,7 +417,7 @@ describe("scoring — catalog integrity", () => {
   it("uses the first of two duplicate catalog rows", () => {
     const bingo = [
       BINGO_CSV,
-      "Callisto,Dragon 2h sword,CallistoDragon 2h sword,\"40,331,957\",999,1",
+      "Callisto,Dragon 2h sword,CallistoDragon 2h sword,999,1",
     ].join("\n");
 
     const result = buildFixture({

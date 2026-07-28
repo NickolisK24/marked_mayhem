@@ -53,8 +53,6 @@ export interface CatalogEntry {
   category: string;
   /** Item name as typed in the sheet, used for display. */
   item: string;
-  /** GP value from the catalog. Null when the cell was blank or broken. */
-  price: number | null;
   /** Base points before any multiplier. */
   points: number;
   /** How many of this item, per team, score full points. Defaults to 1. */
@@ -159,8 +157,6 @@ export interface TeamScore {
   totalPoints: number;
   /** Distinct catalog entries claimed at least once. */
   uniques: number;
-  /** Summed catalog price across every drop, duplicates included. */
-  gpValue: number;
   dropCount: number;
   bonuses: AwardedBonus[];
 }
@@ -174,7 +170,6 @@ export interface PlayerScore {
   isCaptain: boolean;
   points: number;
   dropCount: number;
-  gpValue: number;
 }
 
 export interface FeedEntry {
@@ -191,7 +186,6 @@ export interface FeedEntry {
   points: number;
   /** True when this drop was past its team's full-points quantity limit. */
   halfPoints: boolean;
-  gpValue: number;
   timestamp: number | null;
 }
 
@@ -216,7 +210,6 @@ export interface BossProgressItem {
   key: string;
   item: string;
   points: number;
-  price: number | null;
   fullPointsLimit: number;
   claimedBy: string[];
 }
@@ -244,6 +237,7 @@ export interface EventPayload {
   /** Epoch ms this payload was computed. */
   generatedAt: number;
   eventName: string;
+  eventStart: string | null;
   eventEnd: string | null;
   teams: TeamScore[];
   players: PlayerScore[];
@@ -255,11 +249,6 @@ export interface EventPayload {
   warnings: Warning[];
   tabErrors: TabError[];
   ordering: "timestamp" | "rowOrder";
-  /**
-   * False when the item catalog carries no prices, in which case the UI hides
-   * GP figures instead of showing a confident zero.
-   */
-  hasPrices: boolean;
   /** True when this payload is a cached snapshot because a refresh failed. */
   stale: boolean;
 }
